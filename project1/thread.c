@@ -571,7 +571,7 @@ schedule (void)
   thread_schedule_tail (prev);
 }
 
-
+/* Put thread into sleeping_list*/
 void  
 thread_toSleep(int64_t ticks){              /* haeun */
     struct thread *cur = thread_current();
@@ -580,7 +580,7 @@ thread_toSleep(int64_t ticks){              /* haeun */
     list_push_back(&sleeping_list, &cur->elem);
 }
 
-
+/* Find threads that need to wake up. The threads are removed from sleeping_list and unblocked.*/
 void
 thread_awake(int64_t ticks){                /* haeun */
 
