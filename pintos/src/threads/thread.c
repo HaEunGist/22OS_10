@@ -24,13 +24,11 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
-/* List of processes in THREAD_BLOCKED state, that is, processes
-   that are sleeping. */
-static struct list blocked_list;
-
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
+
+static struct list sleeping_list;		/* haeun */
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -95,8 +93,8 @@ thread_init (void)
 
   lock_init (&tid_lock);
   list_init (&ready_list);
-  list_init (&blocked_list);
   list_init (&all_list);
+  list_init (&sleeping_list);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -226,18 +224,11 @@ thread_create (const char *name, int priority,
 void
 thread_block (void) 
 {
-  struct thread *cur = thread_current ();
-  enum intr_level old_level;
-
   ASSERT (!intr_context ());
   ASSERT (intr_get_level () == INTR_OFF);
 
-  old_level = intr_disable ();
-  if (cur != idle_thread)
-    list_push_back (&blocked_list, &cur->elem);
-  curr ()->status = THREAD_BLOCKED;
+  thread_current ()->status = THREAD_BLOCKED;
   schedule ();
-  intr_set_level (old_level);
 }
 
 /* Transitions a blocked thread T to the ready-to-run state.
@@ -579,6 +570,37 @@ schedule (void)
     prev = switch_threads (cur, next);
   thread_schedule_tail (prev);
 }
+
+
+void  
+thread_toSleep(int64_t ticks){              /* haeun */
+    struct thread *cur = thread_current();
+    cur->sleeping_ticks = ticks; //**
+
+    list_push_back(&sleeping_list, &cur->elem);
+}
+
+
+void
+thread_awake(int64_t ticks){                /* haeun */
+
+    // checking sleep_list
+    struct list_elem *e = list_begin(&sleeping_list);
+    while(e != list_end(&sleeping_list)){
+        struct thread *t = list_entry(e, struct thread, elem); //**
+        // if sleeping_time ends
+        if (t->sleeping_ticks <= ticks){
+            // remove from sleeping_list
+            e = list_remove(e); //**
+            // unblock
+            thread_unblock(t);
+        } else {
+            e = list_next(e); //**
+        }   
+    }
+}
+
+
 
 /* Returns a tid to use for a new thread. */
 static tid_t
