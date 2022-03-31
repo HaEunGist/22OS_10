@@ -28,7 +28,9 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
-static struct list sleeping_list;		/* haeun */
+/* List of processes in THREAD_BLOCKED state, that is, processes
+   that are sleeping. */
+static struct list sleep_list; /*haeun*/
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -94,7 +96,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-  list_init (&sleeping_list);
+  list_init (&sleep_list);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -248,7 +250,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  list_insert_ordered (&ready_list, &t->elem, compare, );	/*haeun*/
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -319,10 +321,46 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    list_insert_ordered (&ready_list, &t->elem, compare, );	/*haeun*/
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
+}
+
+/* The current thread is blocked and put to sleep_list*/
+void
+thread_sleep (int64_t ticks)	/*haeun*/
+{
+  struct thread *cur;
+  enum intr_level old_level;
+
+  old_level = intr_disable ();
+  cur = thread_current ();
+  
+  ASSERT (cur != idle_thread);
+
+  cur->wakeup = ticks;
+  list_push_back (&sleep_list, &cur->elem);
+  thread_block ();
+  
+  intr_set_level (old_level);
+}
+
+/* Find threads that need to wake up. The threads are removed from sleep_list and unblocked.*/
+void
+thread_awake (int64_t ticks)
+{
+  struct list_elem *e = list_begin (&sleep_list);
+
+  while (e != list_end (&sleep_list)){
+    struct thread *t = list_entry (e, struct thread, elem);
+    if (t->wakeup <= ticks){
+      e = list_remove (e);
+      thread_unblock (t);
+    }
+    else
+      e = list_next(e);
+  }
 }
 
 /* Invoke function 'func' on all threads, passing along 'aux'.
@@ -354,6 +392,17 @@ int
 thread_get_priority (void) 
 {
   return thread_current ()->priority;
+}
+
+/*Returns True when elm's priority is greater than e's priority*/
+bool
+compare(struct list_elem *elm, struct list_elem *e, void aux)		/*haeun*/
+{
+  if list_entry (elm, struct thread, elem)->priority > list_entry (elm, struct thread, elem)->priority
+  {
+    return true;
+  }
+  return false;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -570,37 +619,6 @@ schedule (void)
     prev = switch_threads (cur, next);
   thread_schedule_tail (prev);
 }
-
-
-void  
-thread_toSleep(int64_t ticks){              /* haeun */
-    struct thread *cur = thread_current();
-    cur->sleeping_ticks = ticks; //**
-
-    list_push_back(&sleeping_list, &cur->elem);
-}
-
-
-void
-thread_awake(int64_t ticks){                /* haeun */
-
-    // checking sleep_list
-    struct list_elem *e = list_begin(&sleeping_list);
-    while(e != list_end(&sleeping_list)){
-        struct thread *t = list_entry(e, struct thread, elem); //**
-        // if sleeping_time ends
-        if (t->sleeping_ticks <= ticks){
-            // remove from sleeping_list
-            e = list_remove(e); //**
-            // unblock
-            thread_unblock(t);
-        } else {
-            e = list_next(e); //**
-        }   
-    }
-}
-
-
 
 /* Returns a tid to use for a new thread. */
 static tid_t
