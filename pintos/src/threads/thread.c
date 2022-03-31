@@ -349,6 +349,17 @@ thread_get_priority (void)
   return thread_current ()->priority;
 }
 
+/*Returns True when elm's priority is greater than e's priority*/
+bool
+compare(struct list_elem *elm, struct list_elem *e, void aux)		/*haeun*/
+{
+  if list_entry (elm, struct thread, elem)->priority > list_entry (elm, struct thread, elem)->priority
+  {
+    return true;
+  }
+  return false;
+}
+
 /* Sets the current thread's nice value to NICE. */
 void
 thread_set_nice (int nice UNUSED) 
