@@ -351,7 +351,7 @@ thread_get_priority (void)
 
 /*Returns True when elm's priority is greater than e's priority*/
 bool
-compare(struct list_elem *elm, struct list_elem *e, void aux)		/*haeun*/
+compare(struct list_elem *elm, struct list_elem *e, void *aux)		/*haeun*/
 {
   if list_entry (elm, struct thread, elem)->priority > list_entry (elm, struct thread, elem)->priority
   {
