@@ -72,6 +72,7 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+bool compare (const struct list_elem *elm, const struct list_elem *e, void *aux UNUSED);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -365,7 +366,7 @@ thread_get_priority (void)
 
 /*Returns True when elm's priority is greater than e's priority*/
 bool
-compare(const struct list_elem *elm,const struct list_elem *e, void *aux UNUSED)		/*haeun*/
+compare(const struct list_elem *elm, const struct list_elem *e, void *aux UNUSED)		/*haeun*/
 {
   if (list_entry (elm, struct thread, elem)->priority > list_entry (e, struct thread, elem)->priority)
   {
