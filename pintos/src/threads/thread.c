@@ -245,7 +245,7 @@ thread_unblock (struct thread *t)
   struct thread *cur = running_thread();
   ASSERT (cur->status == THREAD_RUNNING);
    
-  if compare(&t->elem, &cur->elem, aux){  //if t has higher priority than running thread, steal running!
+  if ( compare(&t->elem, &cur->elem, 0) ){  //if t has higher priority than running thread, steal running!
     t->status = THREAD_RUNNING;  //like init_thread
     list_push_front(&ready_list, &cur->elem);   //like thread_yield
     cur->status = THREAD_READY; //like thread_yield
@@ -253,7 +253,7 @@ thread_unblock (struct thread *t)
   }
   else
   {
-    list_insert_ordered (&ready_list, &cur->elem, compare, );	/*haeun*/
+    list_insert_ordered (&ready_list, &t->elem, compare, 0);	/*haeun*/
     t->status = THREAD_READY;
   }
   
@@ -326,7 +326,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_insert_ordered (&ready_list, &cur->elem, compare, );	/*haeun*/
+    list_insert_ordered (&ready_list, &cur->elem, compare, 0);	/*haeun*/
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -367,7 +367,7 @@ thread_get_priority (void)
 bool
 compare(struct list_elem *elm, struct list_elem *e, void *aux)		/*haeun*/
 {
-  if list_entry (elm, struct thread, elem)->priority > list_entry (elm, struct thread, elem)->priority
+  if (list_entry (elm, struct thread, elem)->priority > list_entry (e, struct thread, elem)->priority)
   {
     return true;
   }
