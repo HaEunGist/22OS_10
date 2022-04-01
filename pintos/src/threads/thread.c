@@ -241,8 +241,22 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_insert_ordered (&ready_list, &t->elem, compare, );	/*haeun*/
-  t->status = THREAD_READY;
+  
+  struct thread *cur = running_thread();
+  ASSERT (cur->status == THREAD_RUNNING);
+   
+  if compare(&t->elem, &cur->elem, aux){  //if t has higher priority than running thread, steal running!
+    t->status = THREAD_RUNNING;  //like init_thread
+    list_push_front(&ready_list, &cur->elem);   //like thread_yield
+    cur->status = THREAD_READY; //like thread_yield
+    //pass scheduling current thread
+  }
+  else
+  {
+    list_insert_ordered (&ready_list, &cur->elem, compare, );	/*haeun*/
+    t->status = THREAD_READY;
+  }
+  
   intr_set_level (old_level);
 }
 
