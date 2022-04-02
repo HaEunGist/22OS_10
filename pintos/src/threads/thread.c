@@ -247,13 +247,9 @@ thread_unblock (struct thread *t)
   t->status = THREAD_READY;
 
   struct thread *cur = running_thread();
-  if (cur->status = THREAD_RUNNING)
+  if ( compare(&t->elem, &cur->elem, NULL) )	//if t has higher priority than running thread, steal running!
   {
-    if ( compare(&t->elem, &cur->elem, NULL) )	//if t has higher priority than running thread, steal running!
-    {
-    thread_yield();
-    }
-    else{}
+  thread_yield();
   }
 
   intr_set_level (old_level);
