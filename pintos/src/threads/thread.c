@@ -208,6 +208,10 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  if (priority > thread_current ()->priority){
+    thread_yield();
+  }
+
   return tid;
 }
 
@@ -236,7 +240,6 @@ thread_block (void)
 void
 thread_unblock (struct thread *t) 
 {
-  printf("start thread_unblock\n");	////////////DEBUG
   enum intr_level old_level;
 
   ASSERT (is_thread (t));
@@ -247,7 +250,6 @@ thread_unblock (struct thread *t)
   list_insert_ordered (&ready_list, &t->elem, compare, NULL);	/*haeun*/
   t->status = THREAD_READY;
   intr_set_level (old_level);
-  printf("start thread_unblock\n");	////////////DEBUG
 }
 
 /* Returns the name of the running thread. */
@@ -309,7 +311,6 @@ thread_exit (void)
 void
 thread_yield (void) 
 {
-  printf("start thread_yield\n");		//////////////DEBUG
   struct thread *cur = thread_current ();
   enum intr_level old_level;
   
@@ -317,11 +318,10 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_insert_ordered (&ready_list, &cur->elem, compare, NULL);
+    list_insert_ordered (&ready_list, &cur->elem, compare, NULL);	/*haeun*/
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
-  printf("end thread_yield\n");		//////////DEBUG
 }
 
 /* Invoke function 'func' on all threads, passing along 'aux'.
@@ -346,15 +346,16 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
-   
-  struct thread *cur = running_thread ();
-  struct thread *next = next_thread_to_run ();
-
-  ASSERT (is_thread (next));
   
-  if (compare(&next->elem, &cur->elem, NULL)) //if next has higher priority
+  struct thread *cur = running_thread ();
+
+  if ( !list_empty (&ready_list))
   {
-    thread_yield();
+    struct thread *next = list_entry (list_begin(&ready_list), struct thread, elem);
+    if (compare(&next->elem, &cur->elem, NULL)) //if next has higher priority
+    {
+      thread_yield();
+    }
   }
 }
 
@@ -369,15 +370,10 @@ thread_get_priority (void)
 bool
 compare (const struct list_elem *elm, const struct list_elem *e, void *aux UNUSED)		/*haeun*/
 {
-  printf("start compare\n");	////////////DEBUG
   if (list_entry (elm, struct thread, elem)->priority > list_entry (e, struct thread, elem)->priority)
   {
-    printf("%d > %d\n", list_entry (elm, struct thread, elem)->priority,list_entry (e, struct thread, elem)->priority);	////////////////DEBUG
-    printf("end compare\n");	////////////DEBUG
     return true;
   }
-  printf("%d < %d\n", list_entry (elm, struct thread, elem)->priority,list_entry (e, struct thread, elem)->priority);	////////////////////DEBUG
-  printf("end compare\n");	////////////DEBUG
   return false;
 }
 
