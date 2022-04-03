@@ -346,6 +346,16 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+   
+  struct thread *cur = running_thread ();
+  struct thread *next = next_thread_to_run ();
+
+  ASSERT (is_thread (next));
+  
+  if (compare(&next->elem, &cur->elem, NULL)) //if next has higher priority
+  {
+    thread_yield();
+  }
 }
 
 /* Returns the current thread's priority. */
