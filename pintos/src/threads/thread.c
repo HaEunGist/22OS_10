@@ -624,11 +624,13 @@ donate_priority (void){
   struct thread *cur = thread_current ();
   struct thread *lock_holder = cur->waiting_lock->holder;
   lock_holder->priority = cur->priority;
+  list_insert_ordered( &(lock_holder->donations), &cur->elem, compare, NULL);
 
   while( lock_holder->waiting_lock != NULL ){
     struct thread *lock_acquire_thread = lock_holder;
     lock_holder = lock_acquire_thread->waiting_lock->holder;
     lock_holder->priority = cur->priority;
+    list_insert_ordered( &(lock_holder->donations), &lock_acquire_thread->elem, compare, NULL);
   }
 }
 
