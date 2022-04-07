@@ -366,11 +366,11 @@ thread_get_priority (void)
   return thread_current ()->priority;
 }
 
-/*Returns True when elm's priority is greater than e's priority*/
+/*Returns True when a's priority is greater than b's priority*/
 bool
-compare (const struct list_elem *elm, const struct list_elem *e, void *aux UNUSED)		/*haeun*/
+compare (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)		/*haeun*/
 {
-  if (list_entry (elm, struct thread, elem)->priority > list_entry (e, struct thread, elem)->priority)
+  if (list_entry (a, struct thread, elem)->priority > list_entry (b, struct thread, elem)->priority)
   {
     return true;
   }
@@ -488,7 +488,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
+  t->init_prioirty = priority;
   t->priority = priority;
+  t->waiting_lock = NULL;
+  list_init(&t->donations);
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 }
@@ -615,7 +618,19 @@ thread_awake(int64_t ticks){                /* haeun */
     }
 }
 
+/* Donates prioirty to the thread holding the lock. */ 
+void
+donate_priority (void){
+  struct thread *cur = thread_current ();
+  struct thread *lock_holder = cur->waiting_lock->holder;
+  lock_holder->priority = cur->priority;
 
+  while( lock_holder->waiting_lock != NULL ){
+    struct thread *lock_acquire_thread = lock_holder;
+    lock_holder = lock_acquire_thread->waiting_lock->holder;
+    lock_holder->priority = cur->priority;
+  }
+}
 
 /* Returns a tid to use for a new thread. */
 static tid_t
