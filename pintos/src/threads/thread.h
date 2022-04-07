@@ -133,7 +133,7 @@ void thread_foreach (thread_action_func *, void *);
 int thread_get_priority (void);
 void thread_set_priority (int);
 void donate_priority (void);
-void remove_with_lock (struct lock *lock);   /* ??????? */
+void remove_lock (struct lock *lock);
 void reset_priority (void);
 
 int thread_get_nice (void);
