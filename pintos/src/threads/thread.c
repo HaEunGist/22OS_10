@@ -632,6 +632,22 @@ donate_priority (void){
   }
 }
 
+/* NEEDS EXPLAINATION */
+void
+remove_lock(struct lock *lock){
+  /* lock을 해지 했을 때 donations 리스트에서 해당 엔트리를 삭제하기 위한 함수를 구현한다.*/
+  struct list_elem *e;
+
+  for (e = list_begin (&thread_current()->donations); e != list_end (&thread_current()->donations);
+       e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, donation_elem);
+      if (t->waiting_lock == lock){
+        t->waiting_lock = NULL;
+      }
+    }
+}
+
 /* Returns a tid to use for a new thread. */
 static tid_t
 allocate_tid (void) 
