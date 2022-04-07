@@ -81,13 +81,17 @@ struct thread
     enum thread_status status;          /* Thread state. */
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
-    int priority;                       /* Priority. */
+    int64_t sleeping_ticks;		       
+    int init_prioirty;                  /* Initial priority. */
+    int priority;                       /* Current priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+    struct lock *waiting_lock;          /* Lock the thread is waiting for. */
+    struct list donations;              /* List of threads that donated priority. */
+    struct list_elem donation_elem;     /* List element for donations list. */
 
-    int64_t sleeping_ticks;		/* haeun */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
