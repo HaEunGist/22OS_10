@@ -376,11 +376,11 @@ thread_get_priority (void)
 }
 
 // project2_1_2022OS
-/*Returns True when elm's priority is greater than e's priority*/
+/*Returns True when a's priority is greater than b's priority*/
 bool
-compare (const struct list_elem *elm, const struct list_elem *e, void *aux UNUSED){		/*haeun*/
-  if (list_entry (elm, struct thread, elem)->priority
-     > list_entry (e, struct thread, elem)->priority){
+compare (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED){		/*haeun*/
+  if (list_entry (a, struct thread, elem)->priority
+     > list_entry (b, struct thread, elem)->priority){
     return true;
   }
   return false;
@@ -497,7 +497,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
+  t->init_prioirty = priority;
   t->priority = priority;
+  t->waiting_lock = NULL;
+  list_init(&t->donations);
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 }
@@ -625,7 +628,37 @@ thread_awake(int64_t ticks){                /* haeun */
     }
 }
 
+/* Donates prioirty to the thread holding the lock. */ 
+void
+donate_priority (void){
+  struct thread *cur = thread_current ();
+  struct thread *lock_holder = cur->waiting_lock->holder;
+  lock_holder->priority = cur->priority;
+  list_insert_ordered( &(lock_holder->donations), &cur->elem, compare, NULL);
 
+  while( lock_holder->waiting_lock != NULL ){
+    struct thread *lock_acquire_thread = lock_holder;
+    lock_holder = lock_acquire_thread->waiting_lock->holder;
+    lock_holder->priority = cur->priority;
+    list_insert_ordered( &(lock_holder->donations), &cur->elem, compare, NULL);
+  }
+}
+
+/* NEEDS EXPLAINATION */
+void
+remove_lock(struct lock *lock){
+  /* lock을 해지 했을 때 donations 리스트에서 해당 엔트리를 삭제하기 위한 함수를 구현한다.*/
+  struct list_elem *e;
+
+  for (e = list_begin (&thread_current()->donations); e != list_end (&thread_current()->donations);
+       e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, donation_elem);
+      if (t->waiting_lock == lock){
+        t->waiting_lock = NULL;
+      }
+    }
+}
 
 /* Returns a tid to use for a new thread. */
 static tid_t
