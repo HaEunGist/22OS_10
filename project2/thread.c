@@ -363,6 +363,12 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  
+  // init_priority = new_priority
+  /*
+  donate_priority()
+  
+  */
 
   // project2_1_2022OS
   steal_running_by_priority();
@@ -639,6 +645,13 @@ donate_priority (void){
   while( lock_holder->waiting_lock != NULL ){
     struct thread *lock_acquire_thread = lock_holder;
     lock_holder = lock_acquire_thread->waiting_lock->holder;
+    /*
+    if(lock_holder->init_priority <= cur->priority){
+      lock_holder->priority = cur->priority;
+    } else{
+      reset_priority() ----> 근데 이 함수는 커런트에만 ...
+    }
+    */
     lock_holder->priority = cur->priority;
     list_insert_ordered( &(lock_holder->donations), &cur->elem, compare, NULL);
   }
@@ -658,6 +671,21 @@ remove_lock(struct lock *lock){
         t->waiting_lock = NULL;
       }
     }
+}
+
+//22OS
+void
+reset_priority(void){
+  thread_current ()->priority = thread_current ()-> init_priority;
+
+  list_sort (&(thread_current() -> donations), compare, NULL);
+  struct thread *high_d = list_entry (list_begin(&(thread_current() -> donations)), struct thread, elem);
+  int high_d_priority = high_d -> priority;
+  
+  if(thread_current ()->priority < high_d_elem){
+    thread_current ()->priority < high_d_elem;
+  }
+  
 }
 
 /* Returns a tid to use for a new thread. */
