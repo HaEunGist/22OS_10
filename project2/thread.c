@@ -683,7 +683,7 @@ reset_priority(void){
   int high_d_priority = high_d -> priority;
   
   if(thread_current ()->priority < high_d_elem){
-    thread_current ()->priority < high_d_elem;
+    thread_current ()->priority = high_d_elem;
   }
   
 }
