@@ -229,7 +229,14 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  if ( lock->holder != NULL){
+    thread_current ()->waiting_lock = lock;
+    /* multiple donation 을 고려하기 위해 이전상태의 우선순위를 기억, donation 을 받은 thread의 thread 구조체를 list로 관리한다. */
+    donate_priority ();
+  }
+
   sema_down (&lock->semaphore);
+  thread_current ()->waiting_lock = NULL;
   lock->holder = thread_current ();
 }
 
@@ -263,6 +270,10 @@ lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
 
   lock->holder = NULL;
+
+  remove_with_lock (lock);
+  reset_priority ();
+  
   sema_up (&lock->semaphore);
 }
 
