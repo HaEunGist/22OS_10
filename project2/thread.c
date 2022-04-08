@@ -500,7 +500,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
-  t->init_prioirty = priority;
+  t->init_priority = priority;
   t->priority = priority;
   t->waiting_lock = NULL;
   list_init(&t->donations);
@@ -666,6 +666,8 @@ remove_lock(struct lock *lock){
       struct thread *t = list_entry (e, struct thread, donation_elem);
       if (t->waiting_lock == lock){
         t->waiting_lock = NULL;
+        //0408 edit
+        list_remove(e);
       }
     }
 }
@@ -675,13 +677,13 @@ void
 reset_priority(void){
   thread_current ()->priority = thread_current ()-> init_priority;
   
-  ASSERT(!list_empty(&(thread_current() -> donations)));
+  //ASSERT(!list_empty(&(thread_current() -> donations)));
   list_sort (&(thread_current() -> donations), compare, NULL);
   struct thread *high_d = list_entry (list_begin(&(thread_current() -> donations)), struct thread, elem);
   int high_d_priority = high_d -> priority;
   
-  if(thread_current ()->priority < high_d_elem){
-    thread_current ()->priority = high_d_elem;
+  if(thread_current ()->priority < high_d_priority){
+    thread_current ()->priority = high_d_priority;
   }
   
 }
