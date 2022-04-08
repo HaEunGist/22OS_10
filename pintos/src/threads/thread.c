@@ -28,7 +28,8 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
-static struct list sleeping_list;		/* haeun */
+static struct list sleeping_list;		/* haeun1 */
+
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -208,6 +209,7 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  // project2_1_2022OS
   if (priority > thread_current ()->priority){
     thread_yield();
   }
@@ -247,7 +249,9 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
 
+  // project2_1_2022OS
   list_insert_ordered (&ready_list, &t->elem, compare, NULL);	/*haeun*/
+  
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -318,6 +322,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
+    // project2_1_2022OS
     list_insert_ordered (&ready_list, &cur->elem, compare, NULL);	/*haeun*/
   cur->status = THREAD_READY;
   schedule ();
@@ -341,22 +346,26 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
+void
+steal_running_by_priority(void){
+  if ( !list_empty (&ready_list)){
+    struct thread *cur = running_thread ();
+    struct thread *next = list_entry (list_begin(&ready_list), struct thread, elem);
+    if (compare(&next->elem, &cur->elem, NULL)) //if next has higher priority
+    {
+    thread_yield(); //next가 더 크면 러닝 멈추기
+    }
+  }
+}
+
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
-  
-  struct thread *cur = running_thread ();
 
-  if ( !list_empty (&ready_list))
-  {
-    struct thread *next = list_entry (list_begin(&ready_list), struct thread, elem);
-    if (compare(&next->elem, &cur->elem, NULL)) //if next has higher priority
-    {
-      thread_yield();
-    }
-  }
+  // project2_1_2022OS
+  steal_running_by_priority();
 }
 
 /* Returns the current thread's priority. */
@@ -366,12 +375,12 @@ thread_get_priority (void)
   return thread_current ()->priority;
 }
 
+// project2_1_2022OS
 /*Returns True when a's priority is greater than b's priority*/
 bool
-compare (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)		/*haeun*/
-{
-  if (list_entry (a, struct thread, elem)->priority > list_entry (b, struct thread, elem)->priority)
-  {
+compare (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED){		/*haeun*/
+  if (list_entry (a, struct thread, elem)->priority
+     > list_entry (b, struct thread, elem)->priority){
     return true;
   }
   return false;
@@ -520,7 +529,8 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else
-    list_sort (&ready_list, !compare, NULL);
+    // project2_1_2022OS
+    list_sort (&ready_list, compare, NULL);
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }
 
@@ -630,7 +640,7 @@ donate_priority (void){
     struct thread *lock_acquire_thread = lock_holder;
     lock_holder = lock_acquire_thread->waiting_lock->holder;
     lock_holder->priority = cur->priority;
-    list_insert_ordered( &(lock_holder->donations), &lock_acquire_thread->elem, compare, NULL);
+    list_insert_ordered( &(lock_holder->donations), &cur->elem, compare, NULL);
   }
 }
 
