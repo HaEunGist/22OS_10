@@ -364,11 +364,8 @@ thread_set_priority (int new_priority)
 {
   thread_current ()->priority = new_priority;
   
-  // init_priority = new_priority
-  /*
-  donate_priority()
-  
-  */
+  // project2_2_2022OS
+  reset_priority();
 
   // project2_1_2022OS
   steal_running_by_priority();
@@ -677,7 +674,8 @@ remove_lock(struct lock *lock){
 void
 reset_priority(void){
   thread_current ()->priority = thread_current ()-> init_priority;
-
+  
+  ASSERT(!list_empty(&(thread_current() -> donations)));
   list_sort (&(thread_current() -> donations), compare, NULL);
   struct thread *high_d = list_entry (list_begin(&(thread_current() -> donations)), struct thread, elem);
   int high_d_priority = high_d -> priority;
