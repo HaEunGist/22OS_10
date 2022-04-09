@@ -94,7 +94,7 @@ sema_down (struct semaphore *sema)
     { 
       // project2_2_2022OS
       // list_push_back (&sema->waiters, &thread_current ()->elem);
-      list_insert_ordered (&sema->waiters, &thread_current ()->elem, &compare_sema, NULL);
+      list_insert_ordered (&sema->waiters, &thread_current ()->elem, compare, NULL);
       // project2_2_2022OS
 
       thread_block ();
@@ -141,7 +141,7 @@ sema_up (struct semaphore *sema)
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) {
     // project2_2_2022OS
-    list_sort (&sema->waiters, &compare_sema, NULL);
+    list_sort (&sema->waiters, compare, NULL);
     // project2_2_2022OS
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem));
@@ -232,7 +232,8 @@ lock_acquire (struct lock *lock)
   if ( lock->holder != NULL){
     thread_current ()->waiting_lock = lock;
 
-    list_insert_ordered (&(thread_current ()->donations), &(lock->holder), &compare_sema, NULL);
+    list_insert_ordered (&(thread_current ()->donations), &(lock->holder), compare, NULL);
+    //lock-> holder = thread => compare_sema ->compare로 변경
     /* multiple donation 을 고려하기 위해 이전상태의 우선순위를 기억, donation 을 받은 thread의 thread 구조체를 list로 관리한다. */
     donate_priority ();
   }
@@ -273,7 +274,7 @@ lock_release (struct lock *lock)
 
   lock->holder = NULL;
 
-  remove_with_lock (lock);
+  remove_lock (lock);
   reset_priority ();
   
   sema_up (&lock->semaphore);
