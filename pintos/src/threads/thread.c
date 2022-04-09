@@ -363,7 +363,8 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
-  
+  thread_current ()->init_priority = new_priority;
+
   // project2_2_2022OS
   reset_priority();
 
@@ -637,20 +638,19 @@ donate_priority (void){
   struct thread *cur = thread_current ();
   struct thread *lock_holder = cur->waiting_lock->holder;
   lock_holder->priority = cur->priority;
-  list_insert_ordered( &(lock_holder->donations), &cur->elem, compare, NULL);
+  list_insert_ordered( &(lock_holder->donations), &cur->donation_elem, compare, NULL);
 
   while( lock_holder->waiting_lock != NULL ){
     struct thread *lock_acquire_thread = lock_holder;
     lock_holder = lock_acquire_thread->waiting_lock->holder;
     lock_holder->priority = cur->priority;
-    list_insert_ordered( &(lock_holder->donations), &cur->elem, compare, NULL);
+    list_insert_ordered( &(lock_holder->donations), &cur->donation_elem, compare, NULL);
   }
 }
 
-/* NEEDS EXPLAINATION */
+/* Deletes threads from current thread's donations list. */
 void
 remove_lock(struct lock *lock){
-  /* lock을 해지 했을 때 donations 리스트에서 해당 엔트리를 삭제하기 위한 함수를 구현한다.*/
   struct list_elem *e;
 
   for (e = list_begin (&thread_current()->donations); e != list_end (&thread_current()->donations);
@@ -658,27 +658,25 @@ remove_lock(struct lock *lock){
     {
       struct thread *t = list_entry (e, struct thread, donation_elem);
       if (t->waiting_lock == lock){
-        t->waiting_lock = NULL;
-        //0408 edit
         list_remove(e);
       }
     }
 }
 
-//22OS
+/* Set priority to the highest priority in the donations list, when donations list is not empty. */
 void
 reset_priority(void){
   thread_current ()->priority = thread_current ()-> init_priority;
   
-  //ASSERT(!list_empty(&(thread_current() -> donations)));
-  list_sort (&(thread_current() -> donations), compare, NULL);
-  struct thread *high_d = list_entry (list_begin(&(thread_current() -> donations)), struct thread, elem);
-  int high_d_priority = high_d -> priority;
+  if (!list_empty(&(thread_current ()->donations))){
+    list_sort (&(thread_current() -> donations), compare, NULL);
+    struct thread *high_d = list_entry (list_begin(&(thread_current() -> donations)), struct thread, elem);
+    int high_d_priority = high_d -> priority;
   
-  if(thread_current ()->priority < high_d_priority){
-    thread_current ()->priority = high_d_priority;
+    if(thread_current ()->priority < high_d_priority){
+      thread_current ()->priority = high_d_priority;
+    }
   }
-  
 }
 
 /* Returns a tid to use for a new thread. */
