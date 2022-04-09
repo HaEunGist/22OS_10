@@ -232,7 +232,7 @@ lock_acquire (struct lock *lock)
   if ( lock->holder != NULL){
     thread_current ()->waiting_lock = lock;
 
-    list_insert_ordered (&(thread_current ()->donations), &(lock->holder), compare, NULL);
+    list_insert_ordered (&lock->holder->donations, &thread_current ()->donation_elem, compare, NULL);
     //lock-> holder = thread => compare_sema ->compare로 변경
     /* multiple donation 을 고려하기 위해 이전상태의 우선순위를 기억, donation 을 받은 thread의 thread 구조체를 list로 관리한다. */
     donate_priority ();
