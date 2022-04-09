@@ -82,7 +82,7 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int64_t sleeping_ticks;		       
-    int init_prioirty;                  /* Initial priority. */
+    int init_priority;                  /* Initial priority. */
     int priority;                       /* Current priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
@@ -145,5 +145,7 @@ void thread_toSleep(int64_t ticks);
 void thread_awake(int64_t ticks);
 
 bool compare (const struct list_elem *elm, const struct list_elem *e, void *aux UNUSED);
+// project2_2_2022OS
+void steal_running_by_priority(void);
 
 #endif /* threads/thread.h */
