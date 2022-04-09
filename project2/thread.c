@@ -674,7 +674,8 @@ reset_priority(void){
   
   if(!list_empty(&(thread_current() -> donations))){
     list_sort (&(thread_current() -> donations), compare, NULL);
-    struct thread *high_d = list_entry (list_begin(&(thread_current() -> donations)), struct thread, elem);
+    struct thread *high_d = list_entry (list_begin(&thread_current() -> donations), struct thread, donation_elem);
+    //edit
     int high_d_priority = high_d -> priority;
   
     if(thread_current ()->priority < high_d_priority){
