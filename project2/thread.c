@@ -642,13 +642,6 @@ donate_priority (void){
   while( lock_holder->waiting_lock != NULL ){
     struct thread *lock_acquire_thread = lock_holder;
     lock_holder = lock_acquire_thread->waiting_lock->holder;
-    /*
-    if(lock_holder->init_priority <= cur->priority){
-      lock_holder->priority = cur->priority;
-    } else{
-      reset_priority() ----> 근데 이 함수는 커런트에만 ...
-    }
-    */
     lock_holder->priority = cur->priority;
     list_insert_ordered( &(lock_holder->donations), &cur->elem, compare, NULL);
   }

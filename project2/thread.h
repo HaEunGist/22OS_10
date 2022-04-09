@@ -145,5 +145,7 @@ void thread_toSleep(int64_t ticks);
 void thread_awake(int64_t ticks);
 
 bool compare (const struct list_elem *elm, const struct list_elem *e, void *aux UNUSED);
+// project2_2_2022OS
+void steal_running_by_priority(void);
 
 #endif /* threads/thread.h */
