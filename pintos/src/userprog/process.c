@@ -31,6 +31,25 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
 
+  char str = file_name; //NEED TO FIX
+  char* result = strtok(str," ");
+  char token = [];  //NEED TO FIX
+
+  int i = 0;
+  while (result != NULL){
+    token[i] = result;
+    i++;
+
+    result = strtok(NULL, " ");
+  }
+
+  char prog_name = token[0];
+
+  char arg = [];  //NEED TO FIX
+  for (int i = 1; i < len(token); i++){
+    arg[i-1] = token[i]; 
+  }
+
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -39,7 +58,7 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (prog_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
