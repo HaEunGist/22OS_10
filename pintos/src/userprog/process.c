@@ -58,12 +58,27 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  char *ptr;
+  char *next_ptr;
+  char token[100][100]; 
+  int num_token = 0;    //number of tokens
+
+  ptr = strtok_r(file_name, " ", &next_ptr);
+
+  while(ptr){
+    strcpy (token[num_token], ptr);
+
+    num_token++;
+
+    ptr = strtok_r(NULL, " ", &next_ptr);
+  }
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (token[0], &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
