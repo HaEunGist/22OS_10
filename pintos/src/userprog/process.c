@@ -31,24 +31,8 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
 
-  char str = file_name; //NEED TO FIX
-  char* result = strtok(str," ");
-  char token = [];  //NEED TO FIX
-
-  int i = 0;
-  while (result != NULL){
-    token[i] = result;
-    i++;
-
-    result = strtok(NULL, " ");
-  }
-
-  char prog_name = token[0];
-
-  char arg = [];  //NEED TO FIX
-  for (int i = 1; i < len(token); i++){
-    arg[i-1] = token[i]; 
-  }
+  char str = *file_name; //NEED TO FIX
+  char* prog_name = strtok(str," ");
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
