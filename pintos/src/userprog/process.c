@@ -97,7 +97,11 @@ start_process (void *file_name_)
 
 /* Save tokens in user stack */
 void stack_arg(char **token, int num, void **stack_ptr){
-  // NEEDS IMPLEMENTATION
+  /* 프로그램 이름 및 인자 (문자열) push */
+  /* 프로그램 이름 및 인자 주소들 push */
+  /* argv (문자열을 가리키는 주소들의 배열) */
+  /* argc (문자열의 개수 저장) push */
+  /* fake address(0) 저장 */
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
