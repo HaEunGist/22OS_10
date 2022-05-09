@@ -60,7 +60,7 @@ start_process (void *file_name_)
 
   char *ptr;
   char *next_ptr;
-  char token[100][100]; 
+  char **token[100][100]; 
   int num_token = 0;    //number of tokens
 
   ptr = strtok_r(file_name, " ", &next_ptr);
@@ -73,6 +73,8 @@ start_process (void *file_name_)
     ptr = strtok_r(NULL, " ", &next_ptr);
   }
 
+  num_token++;
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -84,8 +86,8 @@ start_process (void *file_name_)
   palloc_free_page (file_name);
   if (!success) 
     thread_exit ();
-   
-  stack_arg (parse, count, &if_.esp); //NEED FIX: parse, count
+
+  stack_arg (&token, num_token, &if_.esp); //NEED FIX: parse, count
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -97,13 +99,51 @@ start_process (void *file_name_)
   NOT_REACHED ();
 }
 
-/* Save tokens in user stack */
-void stack_arg(char **token, int num, void **stack_ptr){
-  /* 프로그램 이름 및 인자 (문자열) push */
+/* Save datas in user stack */
+void stack_arg(char **token, int num, void **esp){
+  uint32_t *address[num];
+
+  /* 인자 (문자열) push */
+  for (int i = num - 1; i > 0; i--){
+    for (int j = strlen(token[i]) - 1; j >= 0; j--){
+      *esp--;
+      **(char **)esp = token[i][j];
+    }
+    address[num] = (uint32_t *)*esp;
+  }
+
+  /* word-align */
+  *esp--;
+  **(uint8_t **)esp = 0;
+
+  /* 프로그램 이름 push*/
+  for (int j = strlen(token[0]) - 1; j >= 0; j --){
+    *esp--;
+    **(char **)esp = token[0][j];
+  }
+  address[0] = (uint32_t *)*esp;
+
   /* 프로그램 이름 및 인자 주소들 push */
+  *esp = *esp - 4;
+  **(int **)esp = 0;
+
+  for (int i = num - 1; i >= 0; i--){
+    *esp = *esp - 4;
+    **(uint32_t **)esp = address[i];
+  }
+
   /* argv (문자열을 가리키는 주소들의 배열) */
+  uint32_t *argv = (uint32_t *)*esp;
+  *esp = *esp - 4;
+  **(uint32_t **)esp = argv;
+
   /* argc (문자열의 개수 저장) push */
+  *esp = *esp - 4;
+  **(int **)esp = num;
+
   /* fake address(0) 저장 */
+  *esp = *esp - 4;
+  **(uint32_t **)esp = 0;
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
