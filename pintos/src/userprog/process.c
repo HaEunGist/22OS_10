@@ -31,16 +31,15 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
 
-  char* str = *file_name; //NEED TO FIX
-  char* next_ptr;
-  char* prog_name = strtok_r (str, " ", &next_ptr);
-
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+
+  char* next_ptr;
+  char* prog_name = strtok_r (fn_copy, " ", &next_ptr);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (prog_name, PRI_DEFAULT, start_process, fn_copy);
