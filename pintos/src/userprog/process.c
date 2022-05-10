@@ -65,7 +65,7 @@ start_process (void *file_name_)
   ptr = strtok_r(file_name, " ", &next_ptr);
 
   while(ptr){
-    strcpy (token[num_token], ptr);
+    strlcpy (token[num_token], ptr, strlen(ptr));
 
     num_token++;
 
@@ -104,8 +104,9 @@ void stack_arg(char **token, int num, void **esp){
   uint32_t *address[num]; //start address of arguments
 
   /* 인자 (문자열) push */
-  for (int i = num - 1; i > 0; i--){
-    for (int j = strlen(token[i]) - 1; j >= 0; j--){
+  int i,j;
+  for (i = num - 1; i > 0; i--){
+    for (j = strlen(token[i]) - 1; j >= 0; j--){
       *esp--;
       **(char **)esp = token[i][j];
     }
@@ -117,7 +118,7 @@ void stack_arg(char **token, int num, void **esp){
   **(uint8_t **)esp = 0;
 
   /* 프로그램 이름 push*/
-  for (int j = strlen(token[0]) - 1; j >= 0; j --){
+  for (j = strlen(token[0]) - 1; j >= 0; j --){
     *esp--;
     **(char **)esp = token[0][j];
   }
@@ -127,7 +128,7 @@ void stack_arg(char **token, int num, void **esp){
   *esp = *esp - 4;
   **(int **)esp = 0;
 
-  for (int i = num - 1; i >= 0; i--){
+  for (i = num - 1; i >= 0; i--){
     *esp = *esp - 4;
     **(uint32_t **)esp = address[i];
   }
