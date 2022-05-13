@@ -10,6 +10,7 @@
 #include "threads/synch.h" //proj3
 #include "filesys/file.h" //proj3
 #include "filesys/filesys.h" //proj3
+#include "userprog/process.h" //proj3
 
 static void syscall_handler (struct intr_frame *);
 void check_type(void *addr); //proj3
@@ -33,16 +34,14 @@ syscall_handler (struct intr_frame *f UNUSED)
       check_type(f->esp + 4);
       exit(*(uint32_t *)(f->esp + 4));
       break;
-    /*
     case SYS_EXEC:
       check_type(f->esp + 4);
-      f->eax = exec ((const char *)(uint32_t *)(f->esp + 4)); //return exist
+      f->eax = exec ((const char *)*(uint32_t *)(f->esp + 4)); //return exist
       break;
     case SYS_WAIT:
       check_type(f->esp + 4);
       f->eax = wait ((pid_t)(uint32_t *)(f->esp + 4)); //return exist
       break;
-    */
     case SYS_CREATE:
       check_type(f->esp + 4);
       check_type(f->esp + 8);
@@ -114,19 +113,26 @@ void halt (void) {
 }
 void exit(int status){ 
   printf("%s: exit(%d)\n", thread_name(), status);
+  thread_current()->exit_status = status;
   thread_exit();
 }
-/*
 pid_t exec (const char *file)
-{
-  return (pid_t) syscall1 (SYS_EXEC, file);
+{ 
+  int tid = process_execute(file); //자식 프로세스 생성
+  for (e=list_begin(&(thread_current()->children)); e!=list_end(&(thread_current()->children)); e=list_next(e)){
+    tmp = list_entry(e, struct thread, children_elem);
+    if (child_tid == tmp->tid){
+      sema_down(&(thread_current()->sema_load));
+      list_remove(&(t->child_elem));
+      return tid;
+    }
+  }
+  return -1;
 }
 int wait (pid_t pid)
 {
-  process_wait();
-  return syscall1 (SYS_WAIT, pid);
+  return process_wait(pid);
 }
-*/
 bool create (const char *file, unsigned initial_size){
   return filesys_create(file, initial_size);
 }

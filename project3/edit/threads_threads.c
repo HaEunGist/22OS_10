@@ -208,6 +208,12 @@ thread_create (const char *name, int priority,
   intr_set_level (old_level);
 
   /* proj3 - exec&wait */
+  struct thread *parent = thread_current ()//부모 프로세스 저장
+  ASSERT (parent->memory_load != TRUE);
+  ASSERT (parent->isProcessExit != TRUE);
+  sema_init(parent->sema_exit);
+  sema_init(parent->sema_load);
+  list_push_back(&(parent->children), &t->children_elem); //자식 리스트에 추가
 
   /* proj3 - other */
   int *numPtr2;     // int형 포인터 선언
@@ -301,6 +307,7 @@ thread_tid (void)
 
 /* Deschedules the current thread and destroys it.  Never
    returns to the caller. */
+//proj3
 void
 thread_exit (void) 
 {
@@ -315,6 +322,11 @@ thread_exit (void)
      when it calls thread_schedule_tail(). */
   intr_disable ();
   list_remove (&thread_current()->allelem);
+
+  //프로세스 디스크립터에 프로세스 종료를 표시
+  thread_current()->isProcessExit = TRUE;
+  //유저프로세스가 종료되면, 부모프로세스의 대기 상태 이탈 후 진행(세마포어)
+  sema_down(&(thread_current()->sema_exit));
   thread_current ()->status = THREAD_DYING;
   schedule ();
   NOT_REACHED ();
@@ -588,7 +600,7 @@ thread_schedule_tail (struct thread *prev)
   if (prev != NULL && prev->status == THREAD_DYING && prev != initial_thread) 
     {
       ASSERT (prev != cur);
-      palloc_free_page (prev);
+      //palloc_free_page (prev); //proj3
     }
 }
 

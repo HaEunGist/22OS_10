@@ -99,10 +99,10 @@ struct thread
     /* proj3 - exec&wait */
     struct list children;
     struct list_elem children_elem;
-    // 프로세스 메모리 생성 여부
-    // 프로세스 종료 여부
-    // exit 세마포어
-    // load 세마포어
+    bool memory_load;    // 프로세스 메모리 생성 여부
+    bool isProcessExit; // 프로세스 종료 여부
+    struct semaphore *sema_exit;
+    struct semaphore *sema_load;
     int exit_status;
 
     /* proj3 - other */
