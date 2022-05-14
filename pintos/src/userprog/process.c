@@ -71,30 +71,21 @@ start_process (void *file_name_)
     num_token++;
 
     ptr = strtok_r(NULL, " ", &next_ptr);
-  }   /* ex. file_name = $bin/ls -l foo bar | token[0] = $bin/ls | num_token = 4 */
+  }
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (&token[0], &if_.eip, &if_.esp);
-  //메모리 적재 완료 시, 부모 프로세스 다시 진행
-  sema_down(&(thread_current()->sema_load));
+  success = load (token[0], &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) {
-    thread_current()->memory_load = success;
-    //메모리 적재 실패 시, 프로세스 디스크립터에 메모리 적재 실패
-    //remove_child(struct thread *cp);
-      //자식리스트에서 제거
-      //프로세스 디스트립터 메모리 해제
+  if (!success) 
     thread_exit ();
-  }
-  thread_current()->memory_load = success;
-  //메모리 적재 성공 시, 프로세스 디스크립터에 메모리 적재 성공
-  stack_arg (&token, num_token, &if_.esp);
+
+  stack_arg (token, num_token, &if_.esp);
   hex_dump(if_.esp, if_.esp, PHYS_BASE - if_.esp, true); ///////////////////////////DEBUGGING
 
   /* Start the user process by simulating a return from an
@@ -114,24 +105,24 @@ void stack_arg(char **token, int num, void **esp){
   /* 인자 (문자열) push */
   int i,j;
   for (i = num - 1; i > 0; i--){
-    *esp--;
-    **(char **)esp = NULL;
+    *esp = *esp -1;
+    *(int **)esp = NULL;
     for (j = strlen(token[i]) - 1; j >= 0; j--){
-      *esp--;
+      *esp = *esp -1;
       **(char **)esp = token[i][j];
     }
     address[i] = (uint32_t *)*esp;
   }
 
   /* word-align */
-  *esp--;
+  *esp = *esp -1;
   **(uint8_t **)esp = 0;
 
   /* 프로그램 이름 push*/
-  *esp--;
-  **(char **)esp = NULL;
+  *esp = *esp -1;
+  *(int **)esp = NULL;
   for (j = strlen(token[0]) - 1; j >= 0; j --){
-    *esp--;
+    *esp = *esp -1;
     **(char **)esp = token[0][j];
   }
   address[0] = (uint32_t *)*esp;
@@ -142,13 +133,13 @@ void stack_arg(char **token, int num, void **esp){
 
   for (i = num - 1; i >= 0; i--){
     *esp = *esp - 4;
-    **(uint32_t **)esp = address[i];
+    *(uint32_t **)esp = address[i];
   }
 
   /* argv (문자열을 가리키는 주소들의 배열) */
   uint32_t *argv = (uint32_t *)*esp;
   *esp = *esp - 4;
-  **(uint32_t **)esp = argv;
+  *(uint32_t **)esp = argv;
 
   /* argc (문자열의 개수 저장) push */
   *esp = *esp - 4;
