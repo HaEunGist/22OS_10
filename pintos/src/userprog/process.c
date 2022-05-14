@@ -20,6 +20,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+void stack_arg(char **token, int num, void **esp);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -59,7 +60,7 @@ start_process (void *file_name_)
 
   char *ptr;
   char *next_ptr;
-  char **token[100][100]; 
+  char *token[100]; 
   int num_token = 0;    //number of tokens
 
   ptr = strtok_r(file_name, " ", &next_ptr);
