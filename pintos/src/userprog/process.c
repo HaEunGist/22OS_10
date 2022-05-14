@@ -70,7 +70,7 @@ start_process (void *file_name_)
     num_token++;
 
     ptr = strtok_r(NULL, " ", &next_ptr);
-  }      /* ex. file_name = $bin/ls -l foo bar | token[0] = $bin/ls | num_token = 4 */
+  }   /* ex. file_name = $bin/ls -l foo bar | token[0] = $bin/ls | num_token = 4 */
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -104,11 +104,13 @@ void stack_arg(char **token, int num, void **esp){
   /* 인자 (문자열) push */
   int i,j;
   for (i = num - 1; i > 0; i--){
+    *esp--;
+    **(char **)esp = NULL;
     for (j = strlen(token[i]) - 1; j >= 0; j--){
       *esp--;
       **(char **)esp = token[i][j];
     }
-    address[num] = (uint32_t *)*esp;
+    address[i] = (uint32_t *)*esp;
   }
 
   /* word-align */
@@ -116,6 +118,8 @@ void stack_arg(char **token, int num, void **esp){
   **(uint8_t **)esp = 0;
 
   /* 프로그램 이름 push*/
+  *esp--;
+  **(char **)esp = NULL;
   for (j = strlen(token[0]) - 1; j >= 0; j --){
     *esp--;
     **(char **)esp = token[0][j];
@@ -142,7 +146,7 @@ void stack_arg(char **token, int num, void **esp){
 
   /* fake address(0) 저장 */
   *esp = *esp - 4;
-  **(uint32_t **)esp = 0;
+  **(int **)esp = 0;
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
