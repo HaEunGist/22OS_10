@@ -78,12 +78,21 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (&token[0], &if_.eip, &if_.esp);
+  //메모리 적재 완료 시, 부모 프로세스 다시 진행
+  sema_down(&(thread_current()->sema_load));
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+  if (!success) {
+    thread_current()->memory_load = success;
+    //메모리 적재 실패 시, 프로세스 디스크립터에 메모리 적재 실패
+    //remove_child(struct thread *cp);
+      //자식리스트에서 제거
+      //프로세스 디스트립터 메모리 해제
     thread_exit ();
-
+  }
+  thread_current()->memory_load = success;
+  //메모리 적재 성공 시, 프로세스 디스크립터에 메모리 적재 성공
   stack_arg (&token, num_token, &if_.esp);
   hex_dump(if_.esp, if_.esp, PHYS_BASE - if_.esp, true); ///////////////////////////DEBUGGING
 
@@ -155,12 +164,20 @@ void stack_arg(char **token, int num, void **esp){
    child of the calling process, or if process_wait() has already
    been successfully called for the given TID, returns -1
    immediately, without waiting.
-
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
+//proj3
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
+  for (e=list_begin(&(thread_current()->children)); e!=list_end(&(thread_current()->children)); e=list_next(e)){
+    tmp = list_entry(e, struct thread, children_elem);
+    if (child_tid == tmp->tid){
+      sema_down(&(thread_current()->sema_exit));
+      list_remove(&(t->child_elem));
+      return tmp->exit_status;
+    }
+  }
   return -1;
 }
 
@@ -441,15 +458,11 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
 /* Loads a segment starting at offset OFS in FILE at address
    UPAGE.  In total, READ_BYTES + ZERO_BYTES bytes of virtual
    memory are initialized, as follows:
-
         - READ_BYTES bytes at UPAGE must be read from FILE
           starting at offset OFS.
-
         - ZERO_BYTES bytes at UPAGE + READ_BYTES must be zeroed.
-
    The pages initialized by this function must be writable by the
    user process if WRITABLE is true, read-only otherwise.
-
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
 static bool
