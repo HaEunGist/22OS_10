@@ -20,6 +20,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+void stack_arg(char **token, int num, void **esp);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -59,7 +60,7 @@ start_process (void *file_name_)
 
   char *ptr;
   char *next_ptr;
-  char **token[100][100]; 
+  char *token[100]; 
   int num_token = 0;    //number of tokens
 
   ptr = strtok_r(file_name, " ", &next_ptr);
@@ -72,30 +73,19 @@ start_process (void *file_name_)
     ptr = strtok_r(NULL, " ", &next_ptr);
   }
 
-  num_token++;
-
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (&token[0], &if_.eip, &if_.esp);
-  //메모리 적재 완료 시, 부모 프로세스 다시 진행
-  sema_down(&(thread_current()->sema_load));
+  success = load (token[0], &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) {
-    thread_current()->memory_load = success;
-    //메모리 적재 실패 시, 프로세스 디스크립터에 메모리 적재 실패
-    //remove_child(struct thread *cp);
-      //자식리스트에서 제거
-      //프로세스 디스트립터 메모리 해제
+  if (!success) 
     thread_exit ();
-  }
-  thread_current()->memory_load = success;
-  //메모리 적재 성공 시, 프로세스 디스크립터에 메모리 적재 성공
-  stack_arg (&token, num_token, &if_.esp);
+
+  stack_arg (token, num_token, &if_.esp);
   hex_dump(if_.esp, if_.esp, PHYS_BASE - if_.esp, true); ///////////////////////////DEBUGGING
 
   /* Start the user process by simulating a return from an
@@ -115,20 +105,24 @@ void stack_arg(char **token, int num, void **esp){
   /* 인자 (문자열) push */
   int i,j;
   for (i = num - 1; i > 0; i--){
+    *esp = *esp -1;
+    *(int **)esp = NULL;
     for (j = strlen(token[i]) - 1; j >= 0; j--){
-      *esp--;
+      *esp = *esp -1;
       **(char **)esp = token[i][j];
     }
-    address[num] = (uint32_t *)*esp;
+    address[i] = (uint32_t *)*esp;
   }
 
   /* word-align */
-  *esp--;
+  *esp = *esp -1;
   **(uint8_t **)esp = 0;
 
   /* 프로그램 이름 push*/
+  *esp = *esp -1;
+  *(int **)esp = NULL;
   for (j = strlen(token[0]) - 1; j >= 0; j --){
-    *esp--;
+    *esp = *esp -1;
     **(char **)esp = token[0][j];
   }
   address[0] = (uint32_t *)*esp;
@@ -139,13 +133,13 @@ void stack_arg(char **token, int num, void **esp){
 
   for (i = num - 1; i >= 0; i--){
     *esp = *esp - 4;
-    **(uint32_t **)esp = address[i];
+    *(uint32_t **)esp = address[i];
   }
 
   /* argv (문자열을 가리키는 주소들의 배열) */
   uint32_t *argv = (uint32_t *)*esp;
   *esp = *esp - 4;
-  **(uint32_t **)esp = argv;
+  *(uint32_t **)esp = argv;
 
   /* argc (문자열의 개수 저장) push */
   *esp = *esp - 4;
@@ -153,7 +147,7 @@ void stack_arg(char **token, int num, void **esp){
 
   /* fake address(0) 저장 */
   *esp = *esp - 4;
-  **(uint32_t **)esp = 0;
+  **(int **)esp = 0;
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
@@ -162,31 +156,36 @@ void stack_arg(char **token, int num, void **esp){
    child of the calling process, or if process_wait() has already
    been successfully called for the given TID, returns -1
    immediately, without waiting.
-
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 //proj3
 int
 process_wait (tid_t child_tid) 
 {
+  struct list_elem* e;
   for (e=list_begin(&(thread_current()->children)); e!=list_end(&(thread_current()->children)); e=list_next(e)){
-    tmp = list_entry(e, struct thread, children_elem);
+    struct thread* tmp = list_entry(e, struct thread, children_elem);
     if (child_tid == tmp->tid){
       sema_down(&(thread_current()->sema_exit));
-      list_remove(&(t->child_elem));
+      list_remove(&(tmp->children_elem));
       return tmp->exit_status;
     }
   }
   return -1;
 }
-
 /* Free the current process's resources. */
+//proj3
 void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  // 0514 수정 - 업데이트 필요
+  for(cur->fdt_can_use; cur->fdt_can_use>=2; cur->fdt_can_use--){
+    file_close(cur->fdt[cur->fdt_can_use]);
+    //file_close 안에 free 함수 있음 -> 메모리 해제 가능?
+  }
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -457,15 +456,11 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
 /* Loads a segment starting at offset OFS in FILE at address
    UPAGE.  In total, READ_BYTES + ZERO_BYTES bytes of virtual
    memory are initialized, as follows:
-
         - READ_BYTES bytes at UPAGE must be read from FILE
           starting at offset OFS.
-
         - ZERO_BYTES bytes at UPAGE + READ_BYTES must be zeroed.
-
    The pages initialized by this function must be writable by the
    user process if WRITABLE is true, read-only otherwise.
-
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
 static bool
