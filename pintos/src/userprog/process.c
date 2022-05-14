@@ -70,9 +70,7 @@ start_process (void *file_name_)
     num_token++;
 
     ptr = strtok_r(NULL, " ", &next_ptr);
-  }
-
-  num_token++;
+  }      /* ex. file_name = $bin/ls -l foo bar | token[0] = $bin/ls | num_token = 4 */
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
