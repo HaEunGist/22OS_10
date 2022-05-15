@@ -1,3 +1,5 @@
+//정답
+
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
 
@@ -88,19 +90,21 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-#ifdef USERPROG
+#ifdef USERPROG //proj3
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-    //int child_lock;
-    //int mem_lock;
-    struct semaphore child_lock;
-    struct semaphore mem_lock;
-    struct semaphore load_lock; /* new */
+    
     struct thread* parent;
-    struct list child;
-    struct list_elem child_elem;
+    struct list children;
+    struct list_elem children_elem;
+    struct semaphore sema_exit;
+    struct semaphore sema_load;
+    struct semaphore sema_mem;
     int exit_status;
-    struct file* fd[200];
+    /* proj3 - other */
+    struct file* fdt[200]; //file descriptor table
+    int fdt_can_use;
+
 #endif
 
     /* Owned by thread.c. */

@@ -50,11 +50,11 @@ process_execute (const char *file_name)
   }
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (cmd_name, PRI_DEFAULT, start_process, fn_copy);
-  sema_down(&thread_current()->load_lock);
+  sema_down(&thread_current()->sema_load);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
-  for (e = list_begin(&thread_current()->child); e != list_end(&thread_current()->child); e = list_next(e)) {
-    t = list_entry(e, struct thread, child_elem);
+  for (e = list_begin(&thread_current()->children); e != list_end(&thread_current()->children); e = list_next(e)) {
+    t = list_entry(e, struct thread, children_elem);
       if (t->exit_status == -1) {
         return process_wait(tid);
       }
@@ -154,9 +154,9 @@ start_process (void *file_name_)
   }
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  sema_up(&thread_current()->parent->load_lock);
+  sema_up(&thread_current()->parent->sema_load);
   if (!success)
-    exit(-1); /* file close를 위해 변경 */
+    exit(-1);
 
    /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -180,22 +180,20 @@ start_process (void *file_name_)
 
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
+//proj3
 int
 process_wait (tid_t child_tid)
 {
 
   struct list_elem* e;
-  struct thread* t = NULL;
-  int exit_status;
-
-  for (e = list_begin(&(thread_current()->child)); e != list_end(&(thread_current()->child)); e = list_next(e)) {
-    t = list_entry(e, struct thread, child_elem);
-    if (child_tid == t->tid) {
-      sema_down(&(t->child_lock));
-      exit_status = t->exit_status;
-      list_remove(&(t->child_elem));
-      sema_up(&(t->mem_lock)); /* new */
-      return exit_status;
+  struct thread* tmp = NULL;
+  for (e = list_begin(&(thread_current()->children)); e != list_end(&(thread_current()->children)); e = list_next(e)) {
+    tmp = list_entry(e, struct thread, children_elem);
+    if (child_tid == tmp->tid){
+      sema_down(&(tmp->sema_exit));
+      list_remove(&(tmp->children_elem));
+      sema_up(&(tmp->sema_mem)); /* new */
+      return tmp->exit_status;
     }
   }
   return -1;
@@ -207,6 +205,7 @@ process_wait (tid_t child_tid)
 
 
 /* Free the current process's resources. */
+//proj3
 void
 process_exit (void)
 {
@@ -229,8 +228,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  sema_up(&(cur->child_lock));
-  sema_down(&(cur->mem_lock)); /* new */
+  sema_up(&(cur->sema_exit));
+  sema_down(&(cur->sema_mem)); /* new */
 }
 
 /* Sets up the CPU for running user code in the current
