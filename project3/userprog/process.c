@@ -1,5 +1,3 @@
-// 헥스 덤프까지 가능
-
 #include "userprog/process.h"
 #include <debug.h>
 #include <inttypes.h>
@@ -22,18 +20,16 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+void stack_arg(char **token, int num, void **esp);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
-process_execute (const char *file_name)
+process_execute (const char *file_name) 
 {
   char *fn_copy;
-  char cmd_name[256];
-  struct list_elem* e;
-  struct thread* t;
   tid_t tid;
 
   /* Make a copy of FILE_NAME.
@@ -43,96 +39,16 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  parse_filename(file_name, cmd_name);
+  char* next_ptr;
+  char* prog_name = strtok_r (fn_copy, " ", &next_ptr);
 
-  if (filesys_open(cmd_name) == NULL) {
-      return -1;
-  }
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (cmd_name, PRI_DEFAULT, start_process, fn_copy);
-  sema_down(&thread_current()->sema_load);
+  tid = thread_create (prog_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy);
-  for (e = list_begin(&thread_current()->children); e != list_end(&thread_current()->children); e = list_next(e)) {
-    t = list_entry(e, struct thread, children_elem);
-      if (t->exit_status == -1) {
-        return process_wait(tid);
-      }
-  }
+    palloc_free_page (fn_copy); 
   return tid;
 }
 
-
-
-
-void parse_filename(char *src, char *dest) {
-  int i;
-  strlcpy(dest, src, strlen(src) + 1);
-  for (i=0; dest[i]!='\0' && dest[i] != ' '; i++);
-  dest[i] = '\0';
-}
-void construct_esp(char *file_name, void **esp) {
-
-  char ** argv;
-  int argc;
-  int total_len;
-  char stored_file_name[256];
-  char *token;
-  char *last;
-  int i;
-  int len;
-  
-  strlcpy(stored_file_name, file_name, strlen(file_name) + 1);
-  token = strtok_r(stored_file_name, " ", &last);
-  argc = 0;
-  /* calculate argc */
-  while (token != NULL) {
-    argc += 1;
-    token = strtok_r(NULL, " ", &last);
-  }
-  argv = (char **)malloc(sizeof(char *) * argc);
-  /* store argv */
-  strlcpy(stored_file_name, file_name, strlen(file_name) + 1);
-  for (i = 0, token = strtok_r(stored_file_name, " ", &last); i < argc; i++, token = strtok_r(NULL, " ", &last)) {
-    len = strlen(token);
-    argv[i] = token;
-
-  }
-
-  /* push argv[argc-1] ~ argv[0] */
-  total_len = 0;
-  for (i = argc - 1; 0 <= i; i --) {
-    len = strlen(argv[i]);
-    *esp -= len + 1;
-    total_len += len + 1;
-    strlcpy(*esp, argv[i], len + 1);
-    argv[i] = *esp;
-  }
-  /* push word align */
-  *esp -= total_len % 4 != 0 ? 4 - (total_len % 4) : 0;
-  /* push NULL */
-  *esp -= 4;
-  **(uint32_t **)esp = 0;
-  /* push address of argv[argc-1] ~ argv[0] */
-  for (i = argc - 1; 0 <= i; i--) {
-    *esp -= 4;
-    **(uint32_t **)esp = argv[i];
-  }
-  /* push address of argv */
-  *esp -= 4;
-  **(uint32_t **)esp = *esp + 4;
-
-  /* push argc */
-  *esp -= 4;
-  **(uint32_t **)esp = argc;
-  
-  /* push return address */
-  *esp -= 4;
-  **(uint32_t **)esp = 0;
-
-  //hex_dump(*esp, *esp, 100, 1);
-  free(argv);
-}
 /* A thread function that loads a user process and starts it
    running. */
 static void
@@ -141,24 +57,38 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-  char cmd_name[500]; // 4KB
-  parse_filename(file_name, cmd_name);
+
+  char *ptr;
+  char *next_ptr;
+  char *token[100]; 
+  int num_token = 0;    //number of tokens
+
+  ptr = strtok_r(file_name, " ", &next_ptr);
+
+  while(ptr){
+    strlcpy (token[num_token], ptr, strlen(ptr));
+
+    num_token++;
+
+    ptr = strtok_r(NULL, " ", &next_ptr);
+  }
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (cmd_name, &if_.eip, &if_.esp);
-  if (success) {
-    construct_esp(file_name, &if_.esp);
-  }
+  success = load (token[0], &if_.eip, &if_.esp);
+
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  sema_up(&thread_current()->parent->sema_load);
-  if (!success)
-    exit(-1);
+  if (!success) 
+    thread_exit ();
 
-   /* Start the user process by simulating a return from an
+  stack_arg (token, num_token, &if_.esp);
+  hex_dump(if_.esp, if_.esp, PHYS_BASE - if_.esp, true); ///////////////////////////DEBUGGING
+
+  /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
      arguments on the stack in the form of a `struct intr_frame',
@@ -168,8 +98,57 @@ start_process (void *file_name_)
   NOT_REACHED ();
 }
 
+/* Save datas in user stack */
+void stack_arg(char **token, int num, void **esp){
+  uint32_t *address[num]; //start address of arguments
 
+  /* 인자 (문자열) push */
+  int i,j;
+  for (i = num - 1; i > 0; i--){
+    *esp = *esp -1;
+    *(int **)esp = NULL;
+    for (j = strlen(token[i]) - 1; j >= 0; j--){
+      *esp = *esp -1;
+      **(char **)esp = token[i][j];
+    }
+    address[i] = (uint32_t *)*esp;
+  }
 
+  /* word-align */
+  *esp = *esp -1;
+  **(uint8_t **)esp = 0;
+
+  /* 프로그램 이름 push*/
+  *esp = *esp -1;
+  *(int **)esp = NULL;
+  for (j = strlen(token[0]) - 1; j >= 0; j --){
+    *esp = *esp -1;
+    **(char **)esp = token[0][j];
+  }
+  address[0] = (uint32_t *)*esp;
+
+  /* 프로그램 이름 및 인자 주소들 push */
+  *esp = *esp - 4;
+  **(int **)esp = 0;
+
+  for (i = num - 1; i >= 0; i--){
+    *esp = *esp - 4;
+    *(uint32_t **)esp = address[i];
+  }
+
+  /* argv (문자열을 가리키는 주소들의 배열) */
+  uint32_t *argv = (uint32_t *)*esp;
+  *esp = *esp - 4;
+  *(uint32_t **)esp = argv;
+
+  /* argc (문자열의 개수 저장) push */
+  *esp = *esp - 4;
+  **(int **)esp = num;
+
+  /* fake address(0) 저장 */
+  *esp = *esp - 4;
+  **(int **)esp = 0;
+}
 
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
@@ -177,33 +156,25 @@ start_process (void *file_name_)
    child of the calling process, or if process_wait() has already
    been successfully called for the given TID, returns -1
    immediately, without waiting.
-
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 //proj3
 int
-process_wait (tid_t child_tid)
+process_wait (tid_t child_tid) 
 {
-
   struct list_elem* e;
-  struct thread* tmp = NULL;
-  for (e = list_begin(&(thread_current()->children)); e != list_end(&(thread_current()->children)); e = list_next(e)) {
+  struct thread* tmp;
+  for (e=list_begin(&(thread_current()->children)); e!=list_end(&(thread_current()->children)); e=list_next(e)){
     tmp = list_entry(e, struct thread, children_elem);
     if (child_tid == tmp->tid){
-      sema_down(&(tmp->sema_exit));
+      sema_down(&(thread_current()->sema_exit));
       list_remove(&(tmp->children_elem));
-      sema_up(&(tmp->sema_mem)); /* new */
+      sema_up(&(thread_current()->sema_load));
       return tmp->exit_status;
     }
   }
   return -1;
 }
-
-
-
-
-
-
 /* Free the current process's resources. */
 //proj3
 void
@@ -212,10 +183,15 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  // 0514 수정 - 업데이트 필요
+  for(cur->fdt_can_use; cur->fdt_can_use>=2; cur->fdt_can_use--){
+    file_close(cur->fdt[cur->fdt_can_use]);
+    //file_close 안에 free 함수 있음 -> 메모리 해제 가능?
+  }
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
-  if (pd != NULL)
+  if (pd != NULL) 
     {
       /* Correct ordering here is crucial.  We must set
          cur->pagedir to NULL before switching page directories,
@@ -228,8 +204,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  sema_up(&(cur->sema_exit));
-  sema_down(&(cur->sema_mem)); /* new */
+  sema_up(&(thread_current()->sema_exit));
+  sema_down(&(thread_current()->sema_load));
 }
 
 /* Sets up the CPU for running user code in the current
@@ -484,15 +460,11 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
 /* Loads a segment starting at offset OFS in FILE at address
    UPAGE.  In total, READ_BYTES + ZERO_BYTES bytes of virtual
    memory are initialized, as follows:
-
         - READ_BYTES bytes at UPAGE must be read from FILE
           starting at offset OFS.
-
         - ZERO_BYTES bytes at UPAGE + READ_BYTES must be zeroed.
-
    The pages initialized by this function must be writable by the
    user process if WRITABLE is true, read-only otherwise.
-
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
 static bool

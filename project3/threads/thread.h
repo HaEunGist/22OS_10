@@ -1,4 +1,4 @@
-//정답
+//내꺼
 
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
@@ -6,7 +6,6 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "synch.h" //proj3
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -84,32 +83,40 @@ struct thread
     enum thread_status status;          /* Thread state. */
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
-    int priority;                       /* Priority. */
+    int64_t sleeping_ticks;		       
+    int init_priority;                  /* Initial priority. */
+    int priority;                       /* Current priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+    struct lock *waiting_lock;          /* Lock the thread is waiting for. */
+    struct list donations;              /* List of threads that donated priority. */
+    struct list_elem donation_elem;     /* List element for donations list. */
 
-#ifdef USERPROG //proj3
+
+#ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-    
-    struct thread* parent;
+    /* proj3 - exec&wait */
     struct list children;
     struct list_elem children_elem;
-    struct semaphore sema_exit;
-    struct semaphore sema_load;
-    struct semaphore sema_mem;
+    bool memory_load;    // 프로세스 메모리 생성 여부
+    bool isProcessExit; // 프로세스 종료 여부
+    struct semaphore sema_exit; //종료 대기
+    struct semaphore sema_load; //생성 대기
     int exit_status;
     /* proj3 - other */
-    struct file* fdt[200]; //file descriptor table
+    struct file* fdt[128]; //file descriptor table
     int fdt_can_use;
+    //테이블에 존재하는 fdt 값의 최대
+
 
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
-  };  
+  };
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

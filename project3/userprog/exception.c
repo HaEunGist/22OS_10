@@ -149,8 +149,8 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
   //proj3
-  if (!user || is_kernel_vaddr(fault_addr) || not_present) {
-    exit(-1);
+  if (!user == is_kernel_vaddr(fault_addr)){
+      exit(-1);
   }
 
   /* To implement virtual memory, delete the rest of the function
