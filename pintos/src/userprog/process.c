@@ -20,7 +20,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-void stack_arg(char **token, int num, void **esp);
+//void stack_arg(char **token, int num, void **esp);	//HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -65,8 +65,10 @@ start_process (void *file_name_)
   int num_token = 0;    //number of tokens
 
   strlcpy (*copy_file_name, file_name, strlen(file_name) + 1);
+  printf("AAAAAAAAAAAA");
 
   ptr = strtok_r(copy_file_name, " ", &next_ptr);
+  printf("BBBBBBBBBBB");
 
   while(ptr){
     strlcpy (*token[num_token], ptr, strlen(ptr) + 1);
@@ -75,6 +77,7 @@ start_process (void *file_name_)
 
     ptr = strtok_r(NULL, " ", &next_ptr);
   }
+  printf("CCCCCCCCCC");
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -89,8 +92,8 @@ start_process (void *file_name_)
   if (!success) 
     thread_exit ();
 
-  stack_arg (token, num_token, &if_.esp);
-  hex_dump(if_.esp, if_.esp, PHYS_BASE - if_.esp, true); ///////////////////////////DEBUGGING
+  //stack_arg (token, num_token, &if_.esp);	//HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
+  //hex_dump(if_.esp, if_.esp, PHYS_BASE - if_.esp, true); ///////////////////////////DEBUGGING
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -157,9 +160,10 @@ void stack_arg(char **token, int num, void **esp){
    immediately, without waiting.
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
-int
-process_wait (tid_t child_tid UNUSED) 
+int process_wait (tid_t child_tid)
 {
+  int i;
+  for (i = 0; i < 1000000000000000; i++);
   return -1;
 }
 
@@ -430,7 +434,7 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
      it then user code that passed a null pointer to system calls
      could quite likely panic the kernel by way of null pointer
      assertions in memcpy(), etc. */
-  if (phdr->p_vaddr < PGSIZE)
+  if (phdr->p_offset < PGSIZE)
     return false;
 
   /* It's okay. */
