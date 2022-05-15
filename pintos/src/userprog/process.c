@@ -86,7 +86,7 @@ start_process (void *file_name_)
     thread_exit ();
 
   stack_arg (token, num_token, &if_.esp);
-  hex_dump(if_.esp, if_.esp, PHYS_BASE - if_.esp, true); ///////////////////////////DEBUGGING
+  //hex_dump(if_.esp, if_.esp, PHYS_BASE - if_.esp, true); ///////////////////////////DEBUGGING
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -101,35 +101,26 @@ start_process (void *file_name_)
 /* Save datas in user stack */
 void stack_arg(char **token, int num, void **esp){
   uint32_t *address[num]; //start address of arguments
+  char **argv;
+  int len = 0;
 
   /* 인자 (문자열) push */
-  int i,j;
-  for (i = num - 1; i > 0; i--){
-    *esp = *esp -1;
-    *(int **)esp = NULL;
-    for (j = strlen(token[i]) - 1; j >= 0; j--){
-      *esp = *esp -1;
-      **(char **)esp = token[i][j];
-    }
-    address[i] = (uint32_t *)*esp;
+  argv = (char **)malloc(sizeof(char *)*num);
+  int i;
+  for (i = num - 1; i >= 0; i--){
+    argv[i] = token[i];
+    len += strlen(argv[i]);
+    *esp = *esp - strlen(argv[i]);
+    strlcpy(*esp, argv[i], strlen(argv[i]) + 1);
+    address[i] = *esp;
   }
 
-  /* word-align */
-  *esp = *esp -1;
-  **(uint8_t **)esp = 0;
-
-  /* 프로그램 이름 push*/
-  *esp = *esp -1;
-  *(int **)esp = NULL;
-  for (j = strlen(token[0]) - 1; j >= 0; j --){
-    *esp = *esp -1;
-    **(char **)esp = token[0][j];
-  }
-  address[0] = (uint32_t *)*esp;
+  /* push word align */
+  *esp -= len % 4 != 0 ? 4 - (len % 4) : 0;   //NEED FIX
 
   /* 프로그램 이름 및 인자 주소들 push */
   *esp = *esp - 4;
-  **(int **)esp = 0;
+  **(uint32_t **)esp = 0;
 
   for (i = num - 1; i >= 0; i--){
     *esp = *esp - 4;
@@ -137,17 +128,20 @@ void stack_arg(char **token, int num, void **esp){
   }
 
   /* argv (문자열을 가리키는 주소들의 배열) */
-  uint32_t *argv = (uint32_t *)*esp;
+  uint32_t *argv_add = (uint32_t *)*esp;
   *esp = *esp - 4;
-  *(uint32_t **)esp = argv;
+  *(uint32_t **)esp = argv_add;
 
   /* argc (문자열의 개수 저장) push */
   *esp = *esp - 4;
-  **(int **)esp = num;
+  **(uint32_t **)esp = num;
 
   /* fake address(0) 저장 */
   *esp = *esp - 4;
   **(int **)esp = 0;
+
+  hex_dump(*esp, *esp, 100, 1);
+  free(argv);
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
@@ -156,20 +150,12 @@ void stack_arg(char **token, int num, void **esp){
    child of the calling process, or if process_wait() has already
    been successfully called for the given TID, returns -1
    immediately, without waiting.
+
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
-//proj3
 int
-process_wait (tid_t child_tid) 
+process_wait (tid_t child_tid UNUSED) 
 {
-  for (e=list_begin(&(thread_current()->children)); e!=list_end(&(thread_current()->children)); e=list_next(e)){
-    tmp = list_entry(e, struct thread, children_elem);
-    if (child_tid == tmp->tid){
-      sema_down(&(thread_current()->sema_exit));
-      list_remove(&(t->child_elem));
-      return tmp->exit_status;
-    }
-  }
   return -1;
 }
 
@@ -450,11 +436,15 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
 /* Loads a segment starting at offset OFS in FILE at address
    UPAGE.  In total, READ_BYTES + ZERO_BYTES bytes of virtual
    memory are initialized, as follows:
+
         - READ_BYTES bytes at UPAGE must be read from FILE
           starting at offset OFS.
+
         - ZERO_BYTES bytes at UPAGE + READ_BYTES must be zeroed.
+
    The pages initialized by this function must be writable by the
    user process if WRITABLE is true, read-only otherwise.
+
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
 static bool
