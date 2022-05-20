@@ -250,3 +250,17 @@ struct vm_entry *check_add_in_vme(void* add, void* esp){
     return vme;
   }
 }
+
+// vm/page.c에 구현??
+/* Buffer의 주소가 유효한 가상주소인지 검사 */
+void check_buffer (void* buffer, unsigned size, void* esp, bool to_write){
+  void *ptr = pg_round_down(buffer);
+  for (; ptr< buffer+size; ptr += PGSIZE){    //COPY, NEED FIX
+    if (check_add_in_vme(ptr, esp) == NULL){    //struct * vme = check_add_in_vme(ptr, esp); 였는데 * 필요할 수도 있음..
+      exit(-1);
+    }
+    if (check_add_in_vme(ptr, esp)->writable == false){
+      exit(-1);
+    }
+  }
+}
