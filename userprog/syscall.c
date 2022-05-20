@@ -229,3 +229,24 @@ void close (int fd) {
   thread_current()->fd[fd] = NULL;
   return file_close(fp);
 }
+
+/* vm_entry를 사용하여 유효성 검사 */
+struct vm_entry *check_add_in_vme(void* add, void* esp){
+  /*user 영역이 아니면, 프로세스 종료 */
+  if(add < (void *)0x08048000 || add >= (void *) 0xc0000000){
+    exit(-1);
+  }
+  /*add이 vm_entry에 존재하면 vm_entry 반환 */
+  struct vm_entry *vme = find_vme(add); //find_vme 함수 구현
+  if (vme != NULL){
+    return vme;
+  }
+  else{
+    if (!verify_stack(add, esp)){ //verify_stack 함수 구현?
+      exit(-1); 
+    }
+    expand_stack(add);  //expand_stack 함수 구현?
+    vme = find_vme(add);
+    return vme;
+  }
+}
