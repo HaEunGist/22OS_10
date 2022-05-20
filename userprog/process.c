@@ -434,26 +434,23 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
          and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
+      struct thread *t = thread_current ();
 
-      /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
-      if (kpage == NULL)
-        return false;
+      /* vm_entry 생성 */
+      struct vm_entry *vme = malloc(sizeof(struct vm_entry));
 
-      /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
+      /* vm_entry 멤버 설정 */
+      vme -> file = file;
+		vme -> offset = ofs;
+      vme -> vaddr = upage;
+		vme -> read_bytes = page_read_bytes;
+		vme -> zero_bytes = page_zero_bytes;
+      vme -> writable = writable;
+      vme -> is_loaded = false;
+      vme -> type = VM_BIN;
 
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
+      /* 생성한 vm_entry를 해시테이블에 추가 */
+      insert_vme(t -> vm, vme);
 
       /* Advance. */
       read_bytes -= page_read_bytes;
