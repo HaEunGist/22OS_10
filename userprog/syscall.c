@@ -16,11 +16,26 @@ static void syscall_handler (struct intr_frame *);
 void check_user_vaddr(const void *vaddr);
 struct lock filesys_lock;
 
-void check_user_vaddr(const void *vaddr) {
+void check_user_vaddr(const void *vaddr, void *esp) {
   if (!is_user_vaddr(vaddr)) {
     exit(-1);
   }
+
+  /*add이 vm_entry에 존재하면 vm_entry 반환 */
+  struct vm_entry *vme = find_vme(vaddr); //find_vme 함수 구현
+  if (vme != NULL){
+    return vme;
+  }
+  else{
+    if (!verify_stack(vaddr, esp)){ //NEED FIX, verify_stack 함수 구현?
+      exit(-1); 
+    }
+    expand_stack(vaddr);  //expand_stack 함수 구현?
+    vme = find_vme(vaddr);
+    return vme;
+  }
 }
+
 void
 syscall_init (void) 
 {
@@ -67,6 +82,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       check_user_vaddr(f->esp + 4);
       check_user_vaddr(f->esp + 8);
       check_user_vaddr(f->esp + 12);
+      check_valid_string_length((void *) arg[1], (unsigned) arg[2], f ->esp);   //NEED FIX
       f->eax = read((int)*(uint32_t *)(f->esp+4), (void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)));
       break;
     case SYS_WRITE:
@@ -228,27 +244,6 @@ void close (int fd) {
   fp = thread_current()->fd[fd];
   thread_current()->fd[fd] = NULL;
   return file_close(fp);
-}
-
-/* vm_entry를 사용하여 유효성 검사 */
-struct vm_entry *check_add_in_vme(void* add, void* esp){
-  /*user 영역이 아니면, 프로세스 종료 */
-  if(add < (void *)0x08048000 || add >= (void *) 0xc0000000){
-    exit(-1);
-  }
-  /*add이 vm_entry에 존재하면 vm_entry 반환 */
-  struct vm_entry *vme = find_vme(add); //find_vme 함수 구현
-  if (vme != NULL){
-    return vme;
-  }
-  else{
-    if (!verify_stack(add, esp)){ //verify_stack 함수 구현?
-      exit(-1); 
-    }
-    expand_stack(add);  //expand_stack 함수 구현?
-    vme = find_vme(add);
-    return vme;
-  }
 }
 
 // vm/page.c에 구현??
