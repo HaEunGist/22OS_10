@@ -251,10 +251,10 @@ void close (int fd) {
 void check_buffer (void* buffer, unsigned size, void* esp){
   void *ptr = pg_round_down(buffer);
   for (; ptr< buffer + size; ptr += PGSIZE){    //COPY, NEED FIX
-    if (check_add_in_vme(ptr, esp) == NULL){    //struct * vme = check_add_in_vme(ptr, esp); 였는데 * 필요할 수도 있음..
+    if (check_user_vaddr(ptr, esp) == NULL){    //struct * vme = check_user_vaddr(ptr, esp); 였는데 * 필요할 수도 있음..
       exit(-1);
     }
-    if (check_add_in_vme(ptr, esp)->writable == false){
+    if (check_user_vaddr(ptr, esp)->writable == false){
       exit(-1);
     }
   }
@@ -264,7 +264,7 @@ void check_buffer (void* buffer, unsigned size, void* esp){
 void check_str (const void *str, unsigned len, void *esp){
   void *ptr = pg_round_down(str);
   for (; ptr< str + len; ptr += PGSIZE){    //COPY, NEED FIX
-    if (check_add_in_vme(ptr, esp) == NULL){    //struct * vme = check_add_in_vme(ptr, esp); 였는데 * 필요할 수도 있음..
+    if (check_user_vaddr(ptr, esp) == NULL){    //struct * vme = check_user_vaddr(ptr, esp); 였는데 * 필요할 수도 있음..
       exit(-1);
     }
   }
