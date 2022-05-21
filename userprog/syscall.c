@@ -56,6 +56,11 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_EXEC:
       check_user_vaddr(f->esp + 4);
+      int len = 0;
+      while(((char *)*(uint32_t *)(f->esp + 4)[len] != '\0')){
+        len ++;
+      }
+      check_str((void *)*(uint32_t *)(f->esp + 4), len, f->esp); //esp+4??
       f->eax = exec((const char *)*(uint32_t *)(f->esp + 4));
       break;
     case SYS_WAIT:
@@ -72,6 +77,11 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_OPEN:
       check_user_vaddr(f->esp + 4);
+      int len = 0;
+      while(((char *)*(uint32_t *)(f->esp + 4)[len] != '\0')){
+        len ++;
+      }
+      check_str((void *)*(uint32_t *)(f->esp + 4), len, f->esp); //esp+4??
       f->eax = open((const char*)*(uint32_t *)(f->esp + 4));
       break;
     case SYS_FILESIZE:
@@ -82,10 +92,11 @@ syscall_handler (struct intr_frame *f UNUSED)
       check_user_vaddr(f->esp + 4);
       check_user_vaddr(f->esp + 8);
       check_user_vaddr(f->esp + 12);
-      check_valid_string_length((void *) arg[1], (unsigned) arg[2], f ->esp);   //NEED FIX
+      // buffer 사용 유무를 고려하여 유효성 검사를 하도록 코드 추가
       f->eax = read((int)*(uint32_t *)(f->esp+4), (void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)));
       break;
     case SYS_WRITE:
+      // buffer 사용 유무를 고려하여 유효성 검사를 하도록 코드 추가
       f->eax = write((int)*(uint32_t *)(f->esp+4), (void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)));
       break;
     case SYS_SEEK:
@@ -244,20 +255,6 @@ void close (int fd) {
   fp = thread_current()->fd[fd];
   thread_current()->fd[fd] = NULL;
   return file_close(fp);
-}
-
-// vm/page.c에 구현??
-/* Buffer의 주소가 유효한 가상주소인지 검사 */
-void check_buffer (void* buffer, unsigned size, void* esp){
-  void *ptr = pg_round_down(buffer);
-  for (; ptr< buffer + size; ptr += PGSIZE){    //COPY, NEED FIX
-    if (check_user_vaddr(ptr, esp) == NULL){    //struct * vme = check_user_vaddr(ptr, esp); 였는데 * 필요할 수도 있음..
-      exit(-1);
-    }
-    if (check_user_vaddr(ptr, esp)->writable == false){
-      exit(-1);
-    }
-  }
 }
 
 /* 인자의 string의 주소가 유효한 가상주소인지 검사 */
