@@ -579,22 +579,36 @@ void construct_esp(char *file_name, void **esp) {
   free(argv);
 }
 
+/*
+void *
+palloc_get_page (enum palloc_flags flags) 
+{
+  return palloc_get_multiple (flags, 1);
+}
+*/
 
 //proj3
 bool handle_mm_fault (struct vm_entry *vme) {
-  palloc_get_page();
-  switch (vme->type)
-  {
-  case VM_BIN:
-    load_file(void *kaddr, vme);
-    return install_page(void *upage, void *kpage, bool writable);
-  case VM_FILE:
-    break;
-  case VM_ANON:
-    break;
-  default:
-    break;
+  bool success = false;
+  void *kaddr;
+
+  palloc_get_page(vme);
+  
+  switch (vme->type) {
+    case VM_BIN:
+      success = load_file(kaddr, vme);
+      break;
+    case VM_FILE:
+      success = load_file(kaddr, vme);
+      break;
+    case VM_ANON:
+      break;
+    default:
+      break;
   }
+
+  install_page(void *upage, void *kpage, success);
+  return success;
 
 /* palloc_get_page()를 이용해서 물리메모리 할당 */
 /* switch문으로 vm_entry의 타입별 처리 (VM_BIN외의 나머지 타입은 mmf 와 swapping에서 다룸*/

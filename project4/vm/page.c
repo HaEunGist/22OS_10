@@ -55,16 +55,16 @@ struct vm_entry *find_vme (void *vaddr) {
 }
 
 void vm_destroy (struct hash *vm) {
-    hash_destroy (vm, vm_destroy_func);
+    hash_destroy (vm, vm_destroy_func); //해야함!
     /* hash_destroy()으로    해시테이블의     버킷리스트와     vm_entry들을    제거    */
 }
-/*
+
 static void vm_destroy_func(struct hash_elem *e, void *aux)
 {
 	struct vm_entry *vme=hash_entry(e, struct vm_entry, elem);
 	free_page(pagedir_get_page (thread_current ()->pagedir, vme->vaddr));
 	free(vme);
-}*/
+}
 
 bool load_file (void *kaddr, struct vm_entry *vme) {
     file_seek(vme->file, vme->offset);
