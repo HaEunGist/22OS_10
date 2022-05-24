@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "vm/page.h"
 
 static thread_func start_process NO_RETURN;
 void parse_filename(char *src, char *dest);
@@ -72,6 +73,10 @@ start_process (void *file_name_)
   char cmd_name[500];
 
   parse_filename(file_name, cmd_name);
+
+  //proj4
+  vm_init((thread_current()->vm));
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -104,7 +109,6 @@ start_process (void *file_name_)
    child of the calling process, or if process_wait() has already
    been successfully called for the given TID, returns -1
    immediately, without waiting.
-
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
@@ -129,11 +133,14 @@ process_wait (tid_t child_tid UNUSED)
 }
 
 /* Free the current process's resources. */
+//proj4
 void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+  vm_destroy (&(cur->vm));
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -407,15 +414,11 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
 /* Loads a segment starting at offset OFS in FILE at address
    UPAGE.  In total, READ_BYTES + ZERO_BYTES bytes of virtual
    memory are initialized, as follows:
-
         - READ_BYTES bytes at UPAGE must be read from FILE
           starting at offset OFS.
-
         - ZERO_BYTES bytes at UPAGE + READ_BYTES must be zeroed.
-
    The pages initialized by this function must be writable by the
    user process if WRITABLE is true, read-only otherwise.
-
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
 static bool
@@ -441,16 +444,16 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       /* vm_entry 멤버 설정 */
       vme -> file = file;
-		vme -> offset = ofs;
+      vme -> offset = ofs;
       vme -> vaddr = upage;
-		vme -> read_bytes = page_read_bytes;
-		vme -> zero_bytes = page_zero_bytes;
+      vme -> read_bytes = page_read_bytes;
+      vme -> zero_bytes = page_zero_bytes;
       vme -> writable = writable;
       vme -> is_loaded = false;
       vme -> type = VM_BIN;
 
       /* 생성한 vm_entry를 해시테이블에 추가 */
-      insert_vme(t -> vm, vme);
+      insert_vme(*(t -> vm), *vme);
 
       /* Advance. */
       read_bytes -= page_read_bytes;
@@ -566,4 +569,47 @@ void construct_esp(char *file_name, void **esp) {
   *esp -= 4;
   **(uint32_t **)esp = 0;
   free(argv);
+}
+
+/*
+void *
+palloc_get_page (enum palloc_flags flags) 
+{
+  return palloc_get_multiple (flags, 1);
+}
+*/
+
+//proj3
+bool handle_mm_fault (struct vm_entry *vme) {
+  bool success = false;
+  void *kaddr;
+
+  kaddr = palloc_get_page(PAL_USER);
+  
+  switch (vme->type) {
+    case VM_BIN:
+    success = load_file(kaddr, vme);
+    break;
+    case VM_FILE:
+    success = load_file(kaddr, vme);
+    break;
+    case VM_ANON:
+    break;
+    default:
+    break;
+  }
+  if(!success)
+  {
+    palloc_free_page(kaddr);
+    return false;
+  }
+
+  install_page(void *upage, void *kpage, success);
+  return success;
+
+/* palloc_get_page()를 이용해서 물리메모리 할당 */
+/* switch문으로 vm_entry의 타입별 처리 (VM_BIN외의 나머지 타입은 mmf 와 swapping에서 다룸*/
+/* VM_BIN일 경우 load_file()함수를 이용해서 물리메모리에 로드 */
+/* install_page를 이용해서 물리페이지와 가상페이지 맵핑 */
+/* 로드 성공 여부 반환 */
 }
