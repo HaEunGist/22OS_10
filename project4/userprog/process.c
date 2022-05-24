@@ -75,7 +75,7 @@ start_process (void *file_name_)
   parse_filename(file_name, cmd_name);
 
   //proj4
-  vm_init(*(thread_current()->vm));
+  vm_init((thread_current()->vm));
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -109,7 +109,6 @@ start_process (void *file_name_)
    child of the calling process, or if process_wait() has already
    been successfully called for the given TID, returns -1
    immediately, without waiting.
-
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
@@ -415,15 +414,11 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
 /* Loads a segment starting at offset OFS in FILE at address
    UPAGE.  In total, READ_BYTES + ZERO_BYTES bytes of virtual
    memory are initialized, as follows:
-
         - READ_BYTES bytes at UPAGE must be read from FILE
           starting at offset OFS.
-
         - ZERO_BYTES bytes at UPAGE + READ_BYTES must be zeroed.
-
    The pages initialized by this function must be writable by the
    user process if WRITABLE is true, read-only otherwise.
-
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
 static bool
@@ -442,26 +437,23 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
          and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
+      struct thread *t = thread_current ();
 
-      /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
-      if (kpage == NULL)
-        return false;
+      /* vm_entry 생성 */
+      struct vm_entry *vme = malloc(sizeof(struct vm_entry));
 
-      /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
+      /* vm_entry 멤버 설정 */
+      vme -> file = file;
+      vme -> offset = ofs;
+      vme -> vaddr = upage;
+      vme -> read_bytes = page_read_bytes;
+      vme -> zero_bytes = page_zero_bytes;
+      vme -> writable = writable;
+      vme -> is_loaded = false;
+      vme -> type = VM_BIN;
 
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
+      /* 생성한 vm_entry를 해시테이블에 추가 */
+      insert_vme(*(t -> vm), *vme);
 
       /* Advance. */
       read_bytes -= page_read_bytes;
@@ -592,19 +584,24 @@ bool handle_mm_fault (struct vm_entry *vme) {
   bool success = false;
   void *kaddr;
 
-  palloc_get_page(vme);
+  kaddr = palloc_get_page(PAL_USER);
   
   switch (vme->type) {
     case VM_BIN:
-      success = load_file(kaddr, vme);
-      break;
+    success = load_file(kaddr, vme);
+    break;
     case VM_FILE:
-      success = load_file(kaddr, vme);
-      break;
+    success = load_file(kaddr, vme);
+    break;
     case VM_ANON:
-      break;
+    break;
     default:
-      break;
+    break;
+  }
+  if(!success)
+  {
+    palloc_free_page(kaddr);
+    return false;
   }
 
   install_page(void *upage, void *kpage, success);
@@ -616,4 +613,3 @@ bool handle_mm_fault (struct vm_entry *vme) {
 /* install_page를 이용해서 물리페이지와 가상페이지 맵핑 */
 /* 로드 성공 여부 반환 */
 }
-

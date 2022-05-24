@@ -1,14 +1,18 @@
 /*====proj4====*/
 
+//#ifndef VM_PAGE_H
+//#define VM_PAGE_H
+
 #define VM_BIN
 #define VM_FILE
 #define VM_ANON
+
+#include <hash.h>
 
 struct vm_entry {
     uint8_t type;
     void *vaddr;
     bool writable;   
-
     bool is_loaded;  
     struct file* file;
 
@@ -22,7 +26,7 @@ struct vm_entry {
 
     struct hash_elem elem;
 
-}
+};
 
 struct mmap_file
 {
@@ -42,3 +46,5 @@ bool delete_vme (struct hash *vm, struct vm_entry *vme);
 
 struct vm_entry *find_vme (void *vaddr);
 void vm_destroy (struct hash *vm);
+static void vm_destroy_func(struct hash_elem *e, void *aux);
+bool load_file (void *kaddr, struct vm_entry *vme);
