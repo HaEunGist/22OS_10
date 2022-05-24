@@ -93,11 +93,11 @@ syscall_handler (struct intr_frame *f UNUSED)
       check_user_vaddr(f->esp + 4);
       check_user_vaddr(f->esp + 8);
       check_user_vaddr(f->esp + 12);
-      // buffer 사용 유무를 고려하여 유효성 검사를 하도록 코드 추가
+      check_valid_string_length((void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)), f -> esp);
       f->eax = read((int)*(uint32_t *)(f->esp+4), (void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)));
       break;
     case SYS_WRITE:
-      // buffer 사용 유무를 고려하여 유효성 검사를 하도록 코드 추가
+      check_valid_string_length((void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)), f -> esp);
       f->eax = write((int)*(uint32_t *)(f->esp+4), (void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)));
       break;
     case SYS_SEEK:
@@ -267,6 +267,19 @@ void check_str (const void *str, unsigned len, void *esp){
       exit(-1);
     }
   }
+}
+
+// system call에서 사용할 인자의 문자열의 주소값이 유효한 가상 주소인지 검사하는 함수로 null문자를 이용하는 것이 아닌 사이즈를 이용
+void
+check_valid_string_length (void *str, unsigned size, void *esp) //NEED FIX
+{
+	int i;
+	for(i=0; i<size; i++)
+	{
+		struct vm_entry *vme = check_address ((void *) (str++), esp);
+		if(vme == NULL)
+			exit(-1);
+	}
 }
 
 //proj4
