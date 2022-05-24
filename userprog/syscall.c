@@ -1,3 +1,4 @@
+
 #include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
@@ -266,4 +267,34 @@ void check_str (const void *str, unsigned len, void *esp){
       exit(-1);
     }
   }
+}
+
+//proj4
+int mmap(int fd, void* addr){
+    struct file file = process_get_file(fd);
+    if (file==NULL){
+        return exit(-1);
+    } else {
+        file_reopen(file);
+        //mapid 할당
+        //mmap_file 생성 및 초기화
+        //vm_entry 생성 및 초기화
+        return fd;
+    }
+}
+
+void munmap(int mapping){
+    struct list_elem *e;
+    struct thread *cur = thread_current();
+    if (mapping==CLOSE_ALL){
+        //모든 파일 매핑 제거
+    }
+    for (e = list_begin (&(cur->mmap_list)); e != list_end (&all_list);
+       e = list_next (e)){
+           //mapping == mapid인 모든 vm_entry 제거
+           //페이지 테이블 엔트리 제거
+           // mmap_file 제거
+           //file_close
+       }
+    
 }
