@@ -114,6 +114,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
   }
 }
+
 void halt (void) {
   shutdown_power_off();
 }
