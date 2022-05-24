@@ -477,8 +477,18 @@ setup_stack (void **esp)
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
+      if (success){
         *esp = PHYS_BASE;
+        struct vm_entry *vme = malloc(sizeof(struct vm_entry));
+
+        vme -> vaddr = ((uint8_t *) PHYS_BASE) - PGSIZE;
+        vme -> writable = true;
+        vme -> is_loaded = true;
+        vme -> type = VM_ANON;
+
+        kpage->vme = vme; // NEED FIX
+        insert_vme(&(thread_current()->vm), vme);
+      }
       else
         palloc_free_page (kpage);
     }
