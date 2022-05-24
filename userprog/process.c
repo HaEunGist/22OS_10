@@ -468,31 +468,32 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp)
 {
-  uint8_t *kpage;
-  bool success = false;
+	struct page *kpage;
+	void *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
+	bool success = false;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL) 
-    {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success){
-        *esp = PHYS_BASE;
-        struct vm_entry *vme = malloc(sizeof(struct vm_entry));
+	kpage = alloc_page (PAL_USER | PAL_ZERO);
+	if(install_page (upage, kpage->kaddr, true)) {
+		//vm_entry 생성
+		*esp = PHYS_BASE;
+		struct vm_entry *vme = malloc(sizeof(struct vm_entry));
+		//vm_entry 멤버들 설정
+		vme->type = VM_ANON;
+		vme->vaddr = upage;
+		vme->writable = true;
+		vme->is_loaded = true;
 
-        vme -> vaddr = ((uint8_t *) PHYS_BASE) - PGSIZE;
-        vme -> writable = true;
-        vme -> is_loaded = true;
-        vme -> type = VM_ANON;
-
-        kpage->vme = vme; // NEED FIX
-        insert_vme(&(thread_current()->vm), vme);
-      }
-      else
-        palloc_free_page (kpage);
-    }
-  return success;
+		kpage->vme=vme;
+		//insert_vme()함수로 해시테이블에 추가
+		insert_vme(&(thread_current()->vm), vme);
+	}
+	else {
+		free_page(kpage->kaddr);
+		return false;
+	}
+	return true;
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel
