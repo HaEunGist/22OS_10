@@ -75,8 +75,9 @@ start_process (void *file_name_)
   parse_filename(file_name, cmd_name);
 
   //proj4
-  vm_init((thread_current()->vm));
-
+  struct thread *cur=thread_current();
+  vm_init(&(cur->vm));
+  
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -453,7 +454,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       vme -> type = VM_BIN;
 
       /* 생성한 vm_entry를 해시테이블에 추가 */
-      insert_vme(*(t -> vm), *vme);
+      insert_vme(&t -> vm, vme);
+      //bool insert_vme (struct hash *vm, struct vm_entry *vme)
 
       /* Advance. */
       read_bytes -= page_read_bytes;
@@ -585,7 +587,6 @@ bool handle_mm_fault (struct vm_entry *vme) {
   void *kaddr;
 
   kaddr = palloc_get_page(PAL_USER);
-  
   switch (vme->type) {
     case VM_BIN:
     success = load_file(kaddr, vme);
@@ -595,8 +596,6 @@ bool handle_mm_fault (struct vm_entry *vme) {
     break;
     case VM_ANON:
     break;
-    default:
-    break;
   }
   if(!success)
   {
@@ -604,7 +603,7 @@ bool handle_mm_fault (struct vm_entry *vme) {
     return false;
   }
 
-  install_page(void *upage, void *kpage, success);
+  //install_page(void *upage, void *kpage, success);
   return success;
 
 /* palloc_get_page()를 이용해서 물리메모리 할당 */

@@ -5,6 +5,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "vm/page.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -158,7 +159,7 @@ page_fault (struct intr_frame *f)
 
   if (not_present) //not read only
   {
-      struct vm_entry vme = find_vme (fault_addr);
+      struct vm_entry *vme = find_vme (fault_addr);
       if(!handle_mm_fault(vme)){
           exit(-1);
       }
