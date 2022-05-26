@@ -475,7 +475,7 @@ setup_stack (void **esp)
 	void *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
 	bool success = false;
 
-	uint8_t kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+	uint8_t *kpage = palloc_get_page (PAL_USER | PAL_ZERO);
 	if(kpage != NULL) {
 		//vm_entry 생성
 		*esp = PHYS_BASE;
@@ -488,7 +488,7 @@ setup_stack (void **esp)
 
 		//kpage->vme=vme;
 		//insert_vme()함수로 해시테이블에 추가
-		insert_vme(&(thread_current()->vm), vme);
+		success = insert_vme(&(thread_current()->vm), vme);
 	}
 	else {
 		//free_page(kpage->kaddr);
@@ -595,11 +595,17 @@ palloc_get_page (enum palloc_flags flags)
 //proj3
 bool handle_mm_fault (struct vm_entry *vme) {
   bool success = false;
-  void *kaddr;
-
-  kaddr = palloc_get_page(PAL_USER);
+  uint8_t *kaddr = palloc_get_page(PAL_USER);
+  if (kaddr == NULL)
+	return false;
+  
   switch (vme->type) {
     case VM_BIN:
+    success = load_file(kaddr, vme);
+    if (!success){
+      palloc_free_page(kaddr);
+      return success;
+    }
     case VM_FILE:
     success = load_file(kaddr, vme);
     if (!success){
@@ -610,7 +616,7 @@ bool handle_mm_fault (struct vm_entry *vme) {
     case VM_ANON:
     break;
   }
-  if(!success)
+  if(!install_page (vme->vaddr, kaddr, vme->writable))
   {
     palloc_free_page(kaddr);
     return false;

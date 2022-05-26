@@ -6,6 +6,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "filesys/off_t.h"
+#include "vm/page.h"
 
 struct file
   {
@@ -13,28 +14,52 @@ struct file
     off_t pos;                  /* Current position. */
     bool deny_write;            /* Has file_deny_write() been called? */
   };
+
 static void syscall_handler (struct intr_frame *);
-void check_user_vaddr(const void *vaddr);
+struct vm_entry * check_user_vaddr(const void *vaddr, void *esp);
 struct lock filesys_lock;
 
-void check_user_vaddr(const void *vaddr, void *esp) {
+struct vm_entry * check_user_vaddr(const void *vaddr, void *esp) {
   if (!is_user_vaddr(vaddr)) {
     exit(-1);
   }
 
   /*add이 vm_entry에 존재하면 vm_entry 반환 */
+  /*
   struct vm_entry *vme = find_vme(vaddr); //find_vme 함수 구현
   if (vme != NULL){
     return vme;
   }
-  else{
+  else {
     if (!verify_stack(vaddr, esp)){ //NEED FIX, verify_stack 함수 구현?
       exit(-1); 
     }
     expand_stack(vaddr);  //expand_stack 함수 구현?
     vme = find_vme(vaddr);
     return vme;
-  }
+  }*/
+  return find_vme(vaddr);
+}
+
+//buffer의 유효성을 검사하는 함수
+void check_valid_buffer(void *buffer, unsigned size, void *esp, bool to_write)
+{
+	void *ptr=pg_round_down(buffer);
+	//인자로 받은 buffer로부터 buffer + size까지의 크기가 한 페이지의 크기를 넘길 수 도 있음
+	for(;ptr<buffer+size; ptr+=PGSIZE)
+	{
+		//check_address를 이용해서 주소의 유저영역 여부를 검사함과 동시에 vm_entry 구조체를 얻음
+		struct vm_entry * vme = check_user_vaddr(ptr, esp);
+		//해당 주소에 대한 vm_entry의 존재 여부와 vm_entry의 writable 멤버가 true인지 검사
+		if(vme == NULL || !(vme->writable))
+		{
+			exit(-1);
+		}
+		//위 내용을 buffer부터 buffer+size까지의 주소에 포함되는 vm_entry들에 대해 적용
+
+	}
+
+
 }
 
 void
@@ -44,21 +69,24 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
+
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
+  int len;
+  check_user_vaddr(f->esp, f->esp);
   switch (*(uint32_t *)(f->esp)) {
     case SYS_HALT:
       halt();
       break;
     case SYS_EXIT:
-      check_user_vaddr(f->esp + 4);
+      check_user_vaddr(f->esp + 4, f->esp);
       exit(*(uint32_t *)(f->esp + 4));
       break;
     case SYS_EXEC:
-      check_user_vaddr(f->esp + 4);
-      int len = 0;
-      while(((char *)*(uint32_t *)(f->esp + 4)[len] != '\0')){
+      check_user_vaddr(f->esp + 4, f->esp);
+      len = 0;
+      while((((char *)(uint32_t *)(f->esp + 4))[len] != '\0')){
         len ++;
       }
       check_str((void *)*(uint32_t *)(f->esp + 4), len, f->esp); //esp+4??
@@ -68,49 +96,49 @@ syscall_handler (struct intr_frame *f UNUSED)
       f-> eax = wait((pid_t)*(uint32_t *)(f->esp + 4));
       break;
     case SYS_CREATE:
-      check_user_vaddr(f->esp + 4);
-      check_user_vaddr(f->esp + 8);
+      check_user_vaddr(f->esp + 4, f->esp);
+      check_user_vaddr(f->esp + 8, f->esp);
       f->eax = create((const char *)*(uint32_t *)(f->esp + 4), (unsigned)*(uint32_t *)(f->esp + 8));
       break;
     case SYS_REMOVE:
-      check_user_vaddr(f->esp + 4);
+      check_user_vaddr(f->esp + 4, f->esp);
       f->eax = remove((const char*)*(uint32_t *)(f->esp + 4));
       break;
     case SYS_OPEN:
-      check_user_vaddr(f->esp + 4);
-      int len = 0;
-      while(((char *)*(uint32_t *)(f->esp + 4)[len] != '\0')){
+      check_user_vaddr(f->esp + 4, f->esp);
+      len = 0;
+      while((((char *)*(uint32_t *)(f->esp + 4))[len] != '\0')){
         len ++;
       }
       check_str((void *)*(uint32_t *)(f->esp + 4), len, f->esp); //esp+4??
       f->eax = open((const char*)*(uint32_t *)(f->esp + 4));
       break;
     case SYS_FILESIZE:
-      check_user_vaddr(f->esp + 4);
+      check_user_vaddr(f->esp + 4, f->esp);
       f->eax = filesize((int)*(uint32_t *)(f->esp + 4));
       break;
     case SYS_READ:
-      check_user_vaddr(f->esp + 4);
-      check_user_vaddr(f->esp + 8);
-      check_user_vaddr(f->esp + 12);
-      check_valid_string_length((void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)), f -> esp);
+      check_user_vaddr(f->esp + 4, f->esp);
+      check_user_vaddr(f->esp + 8, f->esp);
+      check_user_vaddr(f->esp + 12, f->esp);
+      check_valid_buffer((void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)), f -> esp, true);
       f->eax = read((int)*(uint32_t *)(f->esp+4), (void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)));
       break;
     case SYS_WRITE:
-      check_valid_string_length((void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)), f -> esp);
+      check_valid_buffer((void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)), f -> esp, true);
       f->eax = write((int)*(uint32_t *)(f->esp+4), (void *)*(uint32_t *)(f->esp + 8), (unsigned)*((uint32_t *)(f->esp + 12)));
       break;
     case SYS_SEEK:
-      check_user_vaddr(f->esp + 4);
-      check_user_vaddr(f->esp + 8);
+      check_user_vaddr(f->esp + 4, f->esp);
+      check_user_vaddr(f->esp + 8, f->esp);
       seek((int)*(uint32_t *)(f->esp + 4), (unsigned)*(uint32_t *)(f->esp + 8));
       break;
     case SYS_TELL:
-      check_user_vaddr(f->esp + 4);
+      check_user_vaddr(f->esp + 4, f->esp);
       f->eax = tell((int)*(uint32_t *)(f->esp + 4));
       break;
     case SYS_CLOSE:
-      check_user_vaddr(f->esp + 4);
+      check_user_vaddr(f->esp + 4, f->esp);
       close((int)*(uint32_t *)(f->esp + 4));
       break;
   }
@@ -150,7 +178,7 @@ int filesize (int fd) {
 int read (int fd, void* buffer, unsigned size) {
   int i;
   int ret;
-  check_user_vaddr(buffer);
+  //check_user_vaddr(buffer);
   lock_acquire(&filesys_lock);
   if (fd == 0) {
     for (i = 0; i < size; i ++) {
@@ -172,7 +200,7 @@ int read (int fd, void* buffer, unsigned size) {
 int write (int fd, const void *buffer, unsigned size) {
 
   int ret = -1;
-  check_user_vaddr(buffer);
+  //check_user_vaddr(buffer);
   lock_acquire(&filesys_lock);
   if (fd == 1) {
     putbuf(buffer, size);
@@ -195,7 +223,7 @@ bool create (const char *file, unsigned initial_size) {
   if (file == NULL) {
       exit(-1);
   }
-  check_user_vaddr(file);
+  //check_user_vaddr(file);
   return filesys_create(file, initial_size);
 }
 
@@ -203,7 +231,7 @@ bool remove (const char *file) {
   if (file == NULL) {
       exit(-1);
   }
-  check_user_vaddr(file);
+  //check_user_vaddr(file);
   return filesys_remove(file);
 }
 
@@ -214,7 +242,7 @@ int open (const char *file) {
   if (file == NULL) {
       exit(-1);
   }
-  check_user_vaddr(file);
+  //check_user_vaddr(file);
   lock_acquire(&filesys_lock);
   fp = filesys_open(file);
   if (fp == NULL) {
@@ -263,12 +291,13 @@ void close (int fd) {
 void check_str (const void *str, unsigned len, void *esp){
   void *ptr = pg_round_down(str);
   for (; ptr< str + len; ptr += PGSIZE){    //COPY, NEED FIX
-    if (check_user_vaddr(ptr, esp) == NULL){    //struct * vme = check_user_vaddr(ptr, esp); 였는데 * 필요할 수도 있음..
+    if (check_user_vaddr(ptr, esp) == NULL || !(check_user_vaddr(ptr, esp)->writable)){    //struct * vme = check_user_vaddr(ptr, esp); 였는데 * 필요할 수도 있음..
       exit(-1);
     }
   }
 }
 
+/*
 // system call에서 사용할 인자의 문자열의 주소값이 유효한 가상 주소인지 검사하는 함수로 null문자를 이용하는 것이 아닌 사이즈를 이용
 void
 check_valid_string_length (void *str, unsigned size, void *esp) //NEED FIX
@@ -280,7 +309,7 @@ check_valid_string_length (void *str, unsigned size, void *esp) //NEED FIX
 		if(vme == NULL)
 			exit(-1);
 	}
-}
+}*/
 
 
 /*

@@ -36,6 +36,13 @@ struct mmap_file
     struct list vme_list;
 };
 
+struct page {
+    voi *kaddr;
+    struct vm_entry *vme;
+    struct thread *thread;
+    struct list_elem lru;
+}
+
 void vm_init (struct hash *vm);
 static unsigned vm_hash_func (const struct hash_elem *e,void *aux);
 static bool vm_less_func (const struct hash_elem *a, const struct hash_elem *b);
