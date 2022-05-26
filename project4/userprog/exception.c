@@ -163,7 +163,8 @@ page_fault (struct intr_frame *f)
       if(!handle_mm_fault(vme)){
           exit(-1);
       }
-  }
+  } else
+    exit(-1);
   /*
   read_only 페이지에 대한 접근이 아니면
     페이지폴트 발생 주소에 대한 vm_entry 주소 검색 //void *fault_addr;

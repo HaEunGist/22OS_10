@@ -13,7 +13,8 @@
 #include <string.h>
 
 void vm_init (struct hash *vm) {
-    hash_init(vm, *vm_hash_func, *vm_less_func, NULL);
+    //hash_init(vm, *vm_hash_func, *vm_less_func, NULL);
+    hash_init(vm, vm_hash_func, vm_less_func, NULL);
 }
 
 static unsigned vm_hash_func (const struct hash_elem *e,void *aux) {
@@ -28,21 +29,24 @@ static bool vm_less_func (const struct hash_elem *a, const struct hash_elem *b) 
     struct vm_entry * a_vm = hash_entry(a, struct vm_entry, elem);
     struct vm_entry * b_vm = hash_entry(b, struct vm_entry, elem);
     return (*b_vm).vaddr > (*a_vm).vaddr;
+    //return a_vm->vaddr < b_vm->vaddr;
     /* hash_entry()로 각각의 element에 대한 vm_entry 구조체를  얻은 후 vaddr 비교 (b가 크다면 true, a가 크다면 false */
 }
 
 bool insert_vme (struct hash *vm, struct vm_entry *vme) {
-    if (hash_insert (vm, vme) == NULL){
-        return false;
-    } else {
+    if (hash_insert (vm, &(vme->elem)) == NULL){ //
         return true;
+    } else {
+        return false;
     }
 }
 
 bool delete_vme (struct hash *vm, struct vm_entry *vme) {
-    if (hash_delete (vm, vme) == NULL){
+    if (hash_delete (vm, &(vme->elem)) == NULL){
         return false;
     } else {
+        //free_page(pagedir_get_page (thread_current ()->pagedir, vme->vaddr));
+		//free(vme);//vme를 free해줌
         return true;
     }
 }
@@ -78,13 +82,14 @@ static void vm_destroy_func(struct hash_elem *e, void *aux)
 
 bool load_file (void *kaddr, struct vm_entry *vme) {
     file_seek(vme->file, vme->offset);
-    if(file_read(vme->file, kaddr, vme->offset)!=(int)(vme->read_bytes)){
+
+    /* file_read로 물리페이지에  read_bytes만큼 데이터를 씀*/
+    if(file_read(vme->file, kaddr, vme->read_bytes)!=(int)(vme->read_bytes)){
         return false;
     }
-    memset (kaddr + vme->read_bytes, 0, vme->zero_bytes);
-	return true;
-/*Using file_read() + file_seek() */
+    memset (kaddr + vme->read_bytes, 0, vme->zero_bytes); /* zero_bytes만큼 남는 부분을 ‘0’으로 패딩 */ 
+	return true; /* file_read 여부 반환 */
 /* 오프셋을  vm_entry에 해당하는  오프셋으로 설정(file_seek()) */
 /* file_read로 물리페이지에  read_bytes만큼 데이터를 씀*/
-/* zero_bytes만큼 남는 부분을 ‘0’으로 패딩 */ /* file_read 여부 반환 */
+
 }

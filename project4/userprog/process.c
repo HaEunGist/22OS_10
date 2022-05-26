@@ -141,7 +141,8 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
-  vm_destroy (&(cur->vm));
+  //vm_destroy (&(cur->vm));
+  vm_destroy (&cur->vm);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -468,23 +469,33 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp)
 {
-  uint8_t *kpage;
-  bool success = false;
+	//struct page *kpage;
+	void *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
+	bool success = false;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL) 
-    {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
-        *esp = PHYS_BASE;
-      else
-        palloc_free_page (kpage);
-    }
-  return success;
+	uint8_t kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+	if(kpage != NULL) {
+		//vm_entry 생성
+		*esp = PHYS_BASE;
+		struct vm_entry *vme = malloc(sizeof(struct vm_entry));
+		//vm_entry 멤버들 설정
+		vme->type = VM_ANON;
+		vme->vaddr = upage;
+		vme->writable = true;
+		vme->is_loaded = true;
+
+		//kpage->vme=vme;
+		//insert_vme()함수로 해시테이블에 추가
+		insert_vme(&(thread_current()->vm), vme);
+	}
+	else {
+		//free_page(kpage->kaddr);
+		return false;
+	}
+	return true;
 }
-
 /* Adds a mapping from user virtual address UPAGE to kernel
    virtual address KPAGE to the page table.
    If WRITABLE is true, the user process may modify the page;
@@ -589,10 +600,12 @@ bool handle_mm_fault (struct vm_entry *vme) {
   kaddr = palloc_get_page(PAL_USER);
   switch (vme->type) {
     case VM_BIN:
-    success = load_file(kaddr, vme);
-    break;
     case VM_FILE:
     success = load_file(kaddr, vme);
+    if (!success){
+      palloc_free_page(kaddr);
+      return success;
+    }
     break;
     case VM_ANON:
     break;
@@ -604,6 +617,7 @@ bool handle_mm_fault (struct vm_entry *vme) {
   }
 
   //install_page(void *upage, void *kpage, success);
+  vme->is_loaded=true;
   return success;
 
 /* palloc_get_page()를 이용해서 물리메모리 할당 */
