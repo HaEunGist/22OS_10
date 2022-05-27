@@ -1,3 +1,4 @@
+
 #include "userprog/process.h"
 #include <debug.h>
 #include <inttypes.h>
@@ -141,7 +142,8 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
-  vm_destroy (&(cur->vm));
+  //vm_destroy (&(cur->vm));
+  vm_destroy (&cur->vm);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -470,12 +472,12 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp)
 {
-	struct page *kpage;
+	//struct page *kpage;
 	void *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
 	bool success = false;
 
-	kpage = alloc_page (PAL_USER | PAL_ZERO);
-	if(install_page (upage, kpage->kaddr, true)) {
+	uint8_t *kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+	if(kpage != NULL) {
 		//vm_entry 생성
 		*esp = PHYS_BASE;
 		struct vm_entry *vme = malloc(sizeof(struct vm_entry));
@@ -485,17 +487,16 @@ setup_stack (void **esp)
 		vme->writable = true;
 		vme->is_loaded = true;
 
-		kpage->vme=vme;
+		//kpage->vme=vme;
 		//insert_vme()함수로 해시테이블에 추가
-		insert_vme(&(thread_current()->vm), vme);
+		success = insert_vme(&(thread_current()->vm), vme);
 	}
 	else {
-		free_page(kpage->kaddr);
+		//free_page(kpage->kaddr);
 		return false;
 	}
 	return true;
 }
-
 /* Adds a mapping from user virtual address UPAGE to kernel
    virtual address KPAGE to the page table.
    If WRITABLE is true, the user process may modify the page;
@@ -595,26 +596,35 @@ palloc_get_page (enum palloc_flags flags)
 //proj3
 bool handle_mm_fault (struct vm_entry *vme) {
   bool success = false;
-  void *kaddr;
-
-  kaddr = palloc_get_page(PAL_USER);
+  uint8_t *kaddr = palloc_get_page(PAL_USER);
+  if (kaddr == NULL)
+	return false;
+  
   switch (vme->type) {
     case VM_BIN:
     success = load_file(kaddr, vme);
-    break;
+    if (!success){
+      palloc_free_page(kaddr);
+      return success;
+    }
     case VM_FILE:
     success = load_file(kaddr, vme);
+    if (!success){
+      palloc_free_page(kaddr);
+      return success;
+    }
     break;
     case VM_ANON:
     break;
   }
-  if(!success)
+  if(!install_page (vme->vaddr, kaddr, vme->writable))
   {
     palloc_free_page(kaddr);
     return false;
   }
 
   //install_page(void *upage, void *kpage, success);
+  vme->is_loaded=true;
   return success;
 
 /* palloc_get_page()를 이용해서 물리메모리 할당 */
