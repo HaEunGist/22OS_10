@@ -498,6 +498,7 @@ setup_stack (void **esp)
       palloc_free_page (kpage);
       return false;
     }
+  }
   else{
     return false;
   }
