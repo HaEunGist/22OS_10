@@ -472,31 +472,38 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp)
 {
-	//struct page *kpage;
-	void *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
-	bool success = false;
+  //struct page *kpage;
+  void *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
+  bool success = false;
 
-	uint8_t *kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-	if(kpage != NULL) {
-		//vm_entry 생성
-		*esp = PHYS_BASE;
-		struct vm_entry *vme = malloc(sizeof(struct vm_entry));
-		//vm_entry 멤버들 설정
-		vme->type = VM_ANON;
-		vme->vaddr = upage;
-		vme->writable = true;
-		vme->is_loaded = true;
+  uint8_t *kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  if(kpage != NULL) {
+    success = install_page (upage, kpage, true);
+    if (success){
+      //vm_entry 생성
+      *esp = PHYS_BASE;
+			
+      struct vm_entry *vme = malloc(sizeof(struct vm_entry));
+      //vm_entry 멤버들 설정
+      vme->type = VM_ANON;
+      vme->vaddr = upage;
+      vme->writable = true;
+      vme->is_loaded = true;
 
-		//kpage->vme=vme;
-		//insert_vme()함수로 해시테이블에 추가
-		success = insert_vme(&(thread_current()->vm), vme);
-	}
-	else {
-		//free_page(kpage->kaddr);
-		return false;
-	}
-	return true;
+      //kpage->vme=vme;
+      //insert_vme()함수로 해시테이블에 추가
+      success = insert_vme(&(thread_current()->vm), vme);
+    }
+    else{
+      palloc_free_page (kpage);
+      return false;
+    }
+  else{
+    return false;
+  }
+  return true;
 }
+	
 /* Adds a mapping from user virtual address UPAGE to kernel
    virtual address KPAGE to the page table.
    If WRITABLE is true, the user process may modify the page;
