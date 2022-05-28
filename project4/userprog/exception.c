@@ -160,9 +160,8 @@ page_fault (struct intr_frame *f)
   if (not_present) //not read only
   {
       struct vm_entry *vme = find_vme (fault_addr);
-      if(!handle_mm_fault(vme)){
-          exit(-1);
-      }
+      if(!handle_mm_fault(vme))
+         exit (-1);
   } else
     exit(-1);
   /*

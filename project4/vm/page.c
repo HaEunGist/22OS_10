@@ -56,12 +56,12 @@ struct vm_entry *find_vme (void *vaddr) {
     struct vm_entry vme;
     struct hash_elem *elem;
 
-    vm = &thread_current ()->vm;
+    /*vm = &thread_current ()->vm;
     vme.vaddr = pg_round_down (vaddr);
     ASSERT (pg_ofs (vme.vaddr) == 0);
     elem = hash_find (vm, &vme.elem);
-    return elem ? hash_entry (elem, struct vm_entry, elem) : NULL;
-    /*struct thread *cur=thread_current();
+    return elem ? hash_entry (elem, struct vm_entry, elem) : NULL; */
+    struct thread *cur=thread_current();
     struct vm_entry vme;
     vme.vaddr = pg_round_down ((const)vaddr);
     struct hash_elem* tmp = hash_find (&cur->vm, &(vme.vaddr));
@@ -69,7 +69,7 @@ struct vm_entry *find_vme (void *vaddr) {
         return NULL;
     } else {
         return hash_entry(tmp, struct vm_entry, elem);
-    }*/
+    }
 /* pg_round_down()으로 vaddr의 페이지 번호를 얻음 */
 /* hash_find() 함수를 사용해서 hash_elem 구조체 얻음 */
 /* 만약 존재하지 않는다면 NULL 리턴 */
@@ -79,14 +79,6 @@ struct vm_entry *find_vme (void *vaddr) {
 void vm_destroy (struct hash *vm) {
     hash_destroy (vm, vm_destroy_func); //해야함!
     /* hash_destroy()으로    해시테이블의     버킷리스트와     vm_entry들을    제거    */
-}
-
-static void vm_destroy_func(struct hash_elem *e, void *aux)
-{
-    struct thread *cur=thread_current();
-	struct vm_entry *vme = hash_entry(e, struct vm_entry, elem);
-	palloc_free_page(pagedir_get_page (cur->pagedir, vme->vaddr));
-	free(vme);
 }
 
 bool load_file (void *kaddr, struct vm_entry *vme) {
