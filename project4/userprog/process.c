@@ -601,21 +601,6 @@ palloc_get_page (enum palloc_flags flags)
 
 //proj3
 bool handle_mm_fault (struct vm_entry *vme) {
-  
-  uint8_t *kpage;
-  if (vme->type != VM_BIN)
-    return false;
-  kpage = palloc_get_page (PAL_USER);
-  if (kpage == NULL)
-    return false;
-  if (!load_file (kpage, vme) ||
-      !install_page (vme->vaddr, kpage, vme->writable))
-    {
-      palloc_free_page (kpage);
-      return false;
-    }
-  return true;
-  /*
   bool success = false;
   uint8_t *kaddr = palloc_get_page(PAL_USER);
   if (kaddr == NULL)
@@ -646,7 +631,7 @@ bool handle_mm_fault (struct vm_entry *vme) {
 
   //install_page(void *upage, void *kpage, success);
   vme->is_loaded=true;
-  return success;*/
+  return success;
 
 /* palloc_get_page()를 이용해서 물리메모리 할당 */
 /* switch문으로 vm_entry의 타입별 처리 (VM_BIN외의 나머지 타입은 mmf 와 swapping에서 다룸*/
