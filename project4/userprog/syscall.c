@@ -290,27 +290,12 @@ void close (int fd) {
 /* 인자의 string의 주소가 유효한 가상주소인지 검사 */
 void check_str (const void *str, unsigned len, void *esp){
   void *ptr = pg_round_down(str);
-  for (; ptr< str + len; ptr += PGSIZE){    //COPY, NEED FIX
-    if (check_user_vaddr(ptr, esp) == NULL || !(check_user_vaddr(ptr, esp)->writable)){    //struct * vme = check_user_vaddr(ptr, esp); 였는데 * 필요할 수도 있음..
+  for (ptr = pg_round_down(str); ptr< str + len; ptr += PGSIZE){    //COPY, NEED FIX
+    if (check_user_vaddr(ptr, esp) == NULL || !(check_user_vaddr(ptr, esp)->writable)){
       exit(-1);
     }
   }
 }
-
-/*
-// system call에서 사용할 인자의 문자열의 주소값이 유효한 가상 주소인지 검사하는 함수로 null문자를 이용하는 것이 아닌 사이즈를 이용
-void
-check_valid_string_length (void *str, unsigned size, void *esp) //NEED FIX
-{
-	int i;
-	for(i=0; i<size; i++)
-	{
-		struct vm_entry *vme = check_address ((void *) (str++), esp);
-		if(vme == NULL)
-			exit(-1);
-	}
-}*/
-
 
 /*
 //proj4
