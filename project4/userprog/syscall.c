@@ -290,7 +290,7 @@ void close (int fd) {
 /* 인자의 string의 주소가 유효한 가상주소인지 검사 */
 void check_str (const void *str, unsigned len, void *esp){
   void *ptr = pg_round_down(str);
-  for (ptr = pg_round_down(str); ptr< str + len; ptr += PGSIZE){    //COPY, NEED FIX
+  for (ptr = pg_round_down(str); ptr< str + len; ptr += PGSIZE){    // NEED FIX
     if (check_user_vaddr(ptr, esp) == NULL || !(check_user_vaddr(ptr, esp)->writable)){
       exit(-1);
     }
