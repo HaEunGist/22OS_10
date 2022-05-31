@@ -220,7 +220,7 @@ thread_create (const char *name, int priority,
   for (i = 0; i < 128; i++) {                                                         
       t->fdt[i] = NULL;                                                                
   }
-  int fdt_can_use = 3;
+  int fdt_can_use = 2;
   *(t->fdt) = malloc(sizeof(struct file*));
 
 
@@ -531,11 +531,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 
-#ifdef USERPROG //proj3 - exec&wait
-  sema_init(&(t->sema_exit), 0);
-  sema_init(&(t->sema_load), 0);     
-  list_init(&t->children); 
-  list_push_back(&(running_thread()->children), &(t->children_elem));
+  list_init(&t->children); //proj3 - exec&wait
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

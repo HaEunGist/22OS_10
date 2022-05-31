@@ -24,9 +24,8 @@ syscall_init (void)
 
 //proj3
 static void
-syscall_handler (struct intr_frame *f) 
+syscall_handler (struct intr_frame *f UNUSED) 
 {
-  //4 더하는건 argument 1개인 것들
   switch(*(uint32_t *)(f->esp)){
     case SYS_HALT:
       halt();
@@ -41,10 +40,10 @@ syscall_handler (struct intr_frame *f)
       break;
     case SYS_WAIT:
       check_type(f->esp + 4);
-      f->eax = wait ((pid_t)*(uint32_t *)(f->esp + 4)); //return exist
+      f->eax = wait ((pid_t)(uint32_t *)(f->esp + 4)); //return exist
       break;
     case SYS_CREATE:
-      check_type(f->esp + 4); //16
+      check_type(f->esp + 4);
       check_type(f->esp + 8);
       f->eax = create ((const char *)*(uint32_t *)(f->esp + 4),
                         *(uint32_t *)(f->esp + 8));
@@ -62,7 +61,7 @@ syscall_handler (struct intr_frame *f)
       f->eax = filesize (*(uint32_t *)(f->esp + 4));
       break;
     case SYS_READ:
-      check_type(f->esp + 4); //얘는 20...
+      check_type(f->esp + 4);
       check_type(f->esp + 8);
       check_type(f->esp + 12);
       f->eax = read (*(uint32_t *)(f->esp + 4),
@@ -78,7 +77,7 @@ syscall_handler (struct intr_frame *f)
                       *(uint32_t *)(f->esp + 12));
       break;
     case SYS_SEEK:
-      check_type(f->esp + 4); //16
+      check_type(f->esp + 4);
       check_type(f->esp + 8);
       seek (*(uint32_t *)(f->esp + 4),
             *(uint32_t *)(f->esp + 8));
@@ -102,7 +101,6 @@ syscall_handler (struct intr_frame *f)
 //proj3
 void check_type(void *addr)
 { 
-  // threads/vaddr.h
   if (!is_user_vaddr(addr)){
     exit(-1);
   }
@@ -144,17 +142,15 @@ bool remove (const char *file){
 int open (const char *file)
 {
   struct file * tmp = filesys_open(file);
-  int i = thread_current()->fdt_can_use;
   if (tmp==NULL){
     return -1;
   } else {
-    while(i>2 && i<=sizeof(thread_current()->fdt)){
-      if (thread_current()->fdt[i] == NULL){
-        thread_current()->fdt[i] = tmp;
-        thread_current()->fdt_can_use = i+1;
-        return i;
+    while(thread_current()->fdt_can_use > 2 && thread_current()->fdt_can_use<=sizeof(thread_current()->fdt)){
+      if (thread_current()->fdt[thread_current()->fdt_can_use] == NULL){
+        thread_current()->fdt[thread_current()->fdt_can_use] = tmp;
+        return thread_current()->fdt_can_use;
       } else {
-        i++;
+        thread_current()->fdt_can_use++;
       }
     }
     return NULL;
@@ -169,7 +165,6 @@ int filesize (int fd)
     return file_length (tmp); 
   }
 }
-//read가 좀 많이 다름
 int read (int fd, void *buffer, unsigned size)
 {
   lock_acquire (filesys_lock);
@@ -191,13 +186,11 @@ int write (int fd, const void *buffer, unsigned size)
     putbuf(buffer, size);
     lock_release (filesys_lock);
     return size;
-  } else if(fd>2){
+  } else {
     struct file * tmp = thread_current()->fdt[fd];
     int result = file_write (tmp, buffer, size) ;
     lock_release (filesys_lock);
     return result;
-  } else {
-    return -1;
   }
 }
 void seek (int fd, unsigned position) 

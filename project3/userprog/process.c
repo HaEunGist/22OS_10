@@ -20,7 +20,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-void stack_arg(char *file_name, int num, void **esp);
+void stack_arg(char **token, int num, void **esp);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -49,61 +49,29 @@ process_execute (const char *file_name)
   return tid;
 }
 
-void parse_filename(char *src, char *dest) {
-  int i;
-  strlcpy(dest, src, strlen(src) + 1);
-  for (i=0; dest[i]!='\0' && dest[i] != ' '; i++);
-  dest[i] = '\0';
-}
-
 /* A thread function that loads a user process and starts it
    running. */
 static void
 start_process (void *file_name_)
 {
   char *file_name = file_name_;
-  char *copy_file_name;
   struct intr_frame if_;
   bool success;
 
-  char *ptr;
-  char *next_ptr;
-  char *token[100]; 
-  int num_token = 0;    //number of tokens
-
-  char cmd_name[256];
-  parse_filename(file_name, cmd_name);
-
-  strlcpy (*copy_file_name, file_name, strlen(file_name) + 1);
-  //printf("AAAAAAAAAAAA");
-
-  ptr = strtok_r(copy_file_name, " ", &next_ptr);
-  //printf("BBBBBBBBBBB");
-
-  while(ptr){
-    strlcpy (*token[num_token], ptr, strlen(ptr) + 1);
-
-    num_token++;
-
-    ptr = strtok_r(NULL, " ", &next_ptr);
-  }
-  //printf("CCCCCCCCCC");
-
+  printf("\n\n\n%s\n\n\n", file_name);
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  //printf("DDDDDDDDDDDDD");
-  success = load (cmd_name, &if_.eip, &if_.esp);
-
+  success = load (file_name, &if_.eip, &if_.esp);
+  if (success) {
+    /* 여기에 추가한다 */
+  }
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
-    thread_exit ();
-
-  stack_arg (file_name, num_token, &if_.esp);
-  //hex_dump(if_.esp, if_.esp, PHYS_BASE - if_.esp, true); ///////////////////////////DEBUGGING
+    thread_exit (); 
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -112,76 +80,8 @@ start_process (void *file_name_)
      we just point the stack pointer (%esp) to our stack frame
      and jump to it. */
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
-  NOT_REACHED ();
+  NOT_REACHED (); 
 }
-
-/* Save datas in user stack */
-void stack_arg(char *file_name, int num, void **esp){
-  uint32_t *address[num]; //start address of arguments
-  char copy_fname[256];
-  char **argv;
-  int len = 0;
-  char *ptr;
-  char *next_ptr;
-
-  printf("%s", num);		//DEBUGGING
-
-  /* 인자 (문자열) push */
-  argv = (char **)malloc(sizeof(char *)*num);
-  strlcpy(copy_fname, file_name, strlen(file_name) + 1);
-  ptr = strtok_r(copy_fname, " ", &next_ptr);
-  int i = 0;
-  while(ptr){
-    argv[i] = ptr;
-    len += strlen(argv[i]) + 1;
-    *esp = *esp - strlen(argv[i]) - 1;
-    strlcpy(*esp, argv[i], strlen(argv[i]) + 1);
-    address[i] = *esp;
-    i++;
-    ptr = strtok_r(NULL, " ", &next_ptr);
-  }
-
-  /*argv = (char **)malloc(sizeof(char *)*num);
-  int i;
-  for (i = num - 1; i >= 0; i--){
-    argv[i] = token[i];
-    len += strlen(argv[i]) + 1;
-    *esp = *esp - strlen(argv[i]) - 1;
-    strlcpy(*esp, argv[i], strlen(argv[i]) + 1);
-    address[i] = *esp;
-  }*/
-
-  /* push word align */
-  *esp -= len % 4 != 0 ? 4 - (len % 4) : 0;   //NEED FIX
-
-
-  /* 프로그램 이름 및 인자 주소들 push */
-  *esp = *esp - 4;
-  **(uint32_t **)esp = 0;
-
-  for (i = num - 1; i >= 0; i--){
-    *esp = *esp - 4;
-    **(uint32_t **)esp = address[i];
-  }
-
-  /* argv (문자열을 가리키는 주소들의 배열) */
-  //uint32_t *argv_add = (uint32_t *)*esp;
-  *esp = *esp - 4;
-  //**(uint32_t **)esp = argv_add;
-  **(uint32_t **)esp = *esp + 4;
-
-  /* argc (문자열의 개수 저장) push */
-  *esp = *esp - 4;
-  **(uint32_t **)esp = num;
-
-  /* fake address(0) 저장 */
-  *esp = *esp - 4;
-  **(uint32_t **)esp = 0;
-
-  //hex_dump(*esp, *esp, 100, 1);
-  free(argv);
-}
-
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
    exception), returns -1.  If TID is invalid or if it was not a
@@ -190,20 +90,34 @@ void stack_arg(char *file_name, int num, void **esp){
    immediately, without waiting.
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
-int process_wait (tid_t child_tid)
+//proj3
+int
+process_wait (tid_t child_tid) 
 {
-  int i;
-  for (i = 0; i < 1000000000000000; i++);
+  struct list_elem* e;
+  for (e=list_begin(&(thread_current()->children)); e!=list_end(&(thread_current()->children)); e=list_next(e)){
+    struct thread* tmp = list_entry(e, struct thread, children_elem);
+    if (child_tid == tmp->tid){
+      sema_down(&(thread_current()->sema_exit));
+      list_remove(&(tmp->children_elem));
+      return tmp->exit_status;
+    }
+  }
   return -1;
 }
-
 /* Free the current process's resources. */
+//proj3
 void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  // 0514 수정 - 업데이트 필요
+  for(cur->fdt_can_use; cur->fdt_can_use>=2; cur->fdt_can_use--){
+    file_close(cur->fdt[cur->fdt_can_use]);
+    //file_close 안에 free 함수 있음 -> 메모리 해제 가능?
+  }
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -464,7 +378,7 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
      it then user code that passed a null pointer to system calls
      could quite likely panic the kernel by way of null pointer
      assertions in memcpy(), etc. */
-  if (phdr->p_offset < PGSIZE)
+  if (phdr->p_vaddr < PGSIZE)
     return false;
 
   /* It's okay. */

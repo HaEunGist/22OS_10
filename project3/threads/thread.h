@@ -1,5 +1,3 @@
-//내꺼
-
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
 
@@ -103,9 +101,10 @@ struct thread
     struct list_elem children_elem;
     bool memory_load;    // 프로세스 메모리 생성 여부
     bool isProcessExit; // 프로세스 종료 여부
-    struct semaphore sema_exit; //종료 대기
-    struct semaphore sema_load; //생성 대기
+    struct semaphore *sema_exit;
+    struct semaphore *sema_load;
     int exit_status;
+
     /* proj3 - other */
     struct file* fdt[128]; //file descriptor table
     int fdt_can_use;
